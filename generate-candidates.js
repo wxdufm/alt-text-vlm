@@ -1,12 +1,12 @@
 require('dotenv').config();
-const Anthropic = require('@anthropic-ai/sdk');
 const { MongoClient } = require('mongodb');
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'https://api.wxdu.art';
 const DISCOGS_TOKEN = process.env.DISCOGS_TOKEN || null;
 const CONCURRENCY = 3;
+const LOCAL_URL = 'http://localhost:11434';
+const MODEL = 'qwen2.5-vl:7b';
 
-const anthropic = new Anthropic();
 
 // if downloads_db_id exists, it uses the local API, if not it falls back to Discogs.
 async function getCoverUrl(release) {
@@ -44,29 +44,27 @@ async function fetchDiscogsAPI(artist, album) {
 }
  
 async function describeAlbumCover(coverUrl, artist, title) {
-    const message = await anthropic.messages.create({
-        model: 'claude-opus-4-8',
-        max_tokens: 300, // safety net - 2-3 sentence description should only use 60-80 tokens.
-        messages: [
-        {
-            role: 'user',
-            content: [
-            {
-                type: 'image',
-                source: { type: 'url', url: coverUrl },
-            },
-            {
-            type: 'text',
-            // this is the prompt given to the ai for the generation. we can fine-tune this prompt.
-            text: `This is the album cover for "${title}" by ${artist}. Describe it in 2–3 sentences for a blind or low-vision listener. Include what is visually depicted, the dominant colors and visual style, any visible text other than the artist name and album title, and the mood the image conveys. Be specific and evocative.`,
-            },
-        ],
-        },
-    ],
+    // Ollama needs base64, not a URL, so we download the image first
+    const imageRes = await fetch(coverUrl);
+    const buffer = await imageRes.arrayBuffer();
+    const base64 = Buffer.from(buffer).toString('base64');
+
+    // sends the request to the local Ollama server running
+    const res = await fetch(`${LOCAL_URL}/api/generate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            model: MODEL,
+            // prompt given to the model for generation — can be fine-tuned
+            prompt: `This is the album cover for "${title}" by ${artist}. Describe it in 2–3 sentences for a blind or low-vision listener. Include what is visually depicted, the dominant colors and visual style, any visible text other than the artist name and album title, and the mood the image conveys. Be specific and evocative.`,
+            images: [base64],
+            stream: false,
+        }),
     });
-  
-  // returns the text block from Claude's response.
-  return message.content.find((b) => b.type === 'text').text;
+
+    if (!res.ok) throw new Error(`Ollama error: ${res.status}`);
+    const data = await res.json();
+    return data.response;
 }
 
 
