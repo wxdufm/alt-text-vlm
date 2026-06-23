@@ -74,15 +74,16 @@ async function main() {
     const db = client.db();
 
     const releases = await db
-    .collection('releases')
-    .find(
-        {
-        candidate_description: { $exists: false },  // looking for entries without the description
-        no_cover: { $exists: false },  // want entries with covers
-        },
-        { projection: { _id: 1, artist: 1, title: 1, downloads_db_id: 1 } }
-    )
-    .toArray();  // loads the matching document into memory as an array
+        .collection('releases')
+        .find(
+            {
+            candidate_description: { $exists: false },  // looking for entries without the description
+            no_cover: { $exists: false },  // want entries with covers
+            },
+            { projection: { _id: 1, artist: 1, title: 1, downloads_db_id: 1 } }
+        )
+        .limit(500)  // only pull 500 releases into the queue.
+        .toArray();  // loads the matching document into memory as an array
 
 
     // logs queue size
