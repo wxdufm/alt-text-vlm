@@ -21,7 +21,10 @@
 
       <div class="panel">
 
-        <h2 id="albumTitle">Loading...</h2>
+        <div class="release-meta">
+          <h2 id="albumTitle">Album: Loading...</h2>
+          <p id="artistName">By: Loading...</p>
+        </div>
 
         <div class="description-block">
           <span class="section-label">Generated description</span>
@@ -39,8 +42,8 @@
             Deny
           </button>
 
-          <button id="nextBtn" class="button button-next">
-            Next
+          <button id="skipBtn" class="button button-next">
+            Skip
           </button>
         </div>
 
@@ -48,12 +51,18 @@
           <label for="denyReason">Denial notes</label>
           <textarea
             id="denyReason"
-            placeholder="Optional: Explain why you rejected this description, Or give your ideal description for the album"
+            placeholder="Optional: Explain why you rejected this description, Or give your ideal description for the album cover"
           ></textarea>
 
-          <button id="confirmDenyBtn" class="button button-deny">
-            Confirm
-          </button>
+          <div class="deny-actions">
+            <button id="confirmDenyBtn" class="button button-deny">
+              Confirm
+            </button>
+
+            <button id="cancelDenyBtn" class="button button-cancel">
+              Cancel
+            </button>
+          </div>
         </div>
 
         <p id="status" role="status"></p>

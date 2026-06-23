@@ -2,14 +2,16 @@ let currentRelease = null;
 
 const cover = document.getElementById("cover");
 const albumTitle = document.getElementById("albumTitle");
+const artistName = document.getElementById("artistName");
 const description = document.getElementById("description");
 const status = document.getElementById("status");
-const nextBtn = document.getElementById("nextBtn");
+const skipBtn = document.getElementById("skipBtn");
 const approveBtn = document.getElementById("approveBtn");
 const denyBtn = document.getElementById("denyBtn");
 const denyPanel = document.getElementById("denyPanel");
 const denyReason = document.getElementById("denyReason");
 const confirmDenyBtn = document.getElementById("confirmDenyBtn");
+const cancelDenyBtn = document.getElementById("cancelDenyBtn");
 
 const placeholderDescription =
   "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.";
@@ -20,10 +22,11 @@ function setStatus(message, type = "") {
 }
 
 function setButtonsLoading(isLoading) {
-  nextBtn.disabled = isLoading;
+  skipBtn.disabled = isLoading;
   approveBtn.disabled = isLoading || !currentRelease;
   denyBtn.disabled = isLoading || !currentRelease;
   confirmDenyBtn.disabled = isLoading || !currentRelease;
+  cancelDenyBtn.disabled = isLoading;
 }
 
 function hideDenyPanel() {
@@ -33,7 +36,8 @@ function hideDenyPanel() {
 
 async function loadRelease() {
   currentRelease = null;
-  albumTitle.textContent = "Loading...";
+  albumTitle.textContent = "Album: Loading...";
+  artistName.textContent = "By: Loading...";
   description.textContent = placeholderDescription;
   cover.removeAttribute("src");
   cover.alt = "";
@@ -64,16 +68,22 @@ async function loadRelease() {
       "unknown album"
     }`;
 
-    albumTitle.textContent =
+    albumTitle.textContent = `Album: ${
       release.title ||
       release.album ||
-      "Unknown Album";
+      "Unknown Album"
+    }`;
+    artistName.textContent = `By: ${
+      release.artist ||
+      "Unknown Artist"
+    }`;
 
     description.textContent = placeholderDescription;
     setStatus("");
   } catch (err) {
     console.error(err);
-    albumTitle.textContent = "No release loaded";
+    albumTitle.textContent = "Album: No release loaded";
+    artistName.textContent = "By: Unknown Artist";
     setStatus(err.message, "error");
   } finally {
     setButtonsLoading(false);
@@ -86,13 +96,13 @@ cover.addEventListener("error", () => {
   setStatus("Image failed to load. Check the cover_url value.", "error");
 });
 
-nextBtn.addEventListener("click", loadRelease);
+skipBtn.addEventListener("click", loadRelease);
 
-approveBtn.addEventListener("click", () => {
+approveBtn.addEventListener("click", async () => {
   if (!currentRelease) return;
 
   hideDenyPanel();
-  setStatus(`Approved ${currentRelease._id}`);
+  await loadRelease();
 });
 
 denyBtn.addEventListener("click", () => {
@@ -106,9 +116,18 @@ denyBtn.addEventListener("click", () => {
 confirmDenyBtn.addEventListener("click", () => {
   if (!currentRelease) return;
 
-  const note = denyReason.value.trim();
+  const denialNote = denyReason.value.trim();
+  console.log({
+    releaseId: currentRelease._id,
+    denialNote
+  });
   hideDenyPanel();
-  setStatus(note ? `Denied ${currentRelease._id} with notes` : `Denied ${currentRelease._id}`);
+  loadRelease();
+});
+
+cancelDenyBtn.addEventListener("click", () => {
+  hideDenyPanel();
+  setStatus("");
 });
 
 loadRelease();

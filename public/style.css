@@ -43,7 +43,7 @@ h1 {
 }
 
 h2 {
-  margin-bottom: 22px;
+  margin-bottom: 8px;
   font-size: 26px;
   line-height: 1.2;
 }
@@ -78,6 +78,17 @@ h2 {
 
 .panel {
   padding: 28px;
+}
+
+.release-meta {
+  margin-bottom: 22px;
+}
+
+#artistName {
+  margin-bottom: 0;
+  color: #596579;
+  font-size: 18px;
+  line-height: 1.35;
 }
 
 .description-block {
@@ -171,8 +182,15 @@ h2 {
   background: #2563eb;
 }
 
-#confirmDenyBtn {
+.button-cancel {
+  background: #6b7280;
+}
+
+.deny-actions {
   margin-top: 12px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
 }
 
 #status {
