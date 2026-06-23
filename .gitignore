@@ -3,3 +3,5 @@ models/
 *.safetensors
 *.bin
 .cache/
+/sqldocker/
+.env
