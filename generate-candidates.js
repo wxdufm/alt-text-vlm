@@ -11,14 +11,15 @@ const MODEL = 'qwen2.5-vl:7b';
 // if downloads_db_id exists, it uses the local API, if not it falls back to Discogs.
 async function getCoverUrl(release) {
     if (release.downloads_db_id) {
-        return `${API_BASE}/api/releases/${release._id}/cover?size=small`;
+        return { url: `${API_BASE}/api/releases/${release._id}/cover?size=small`, discogsId: null };
     }
 
     if (DISCOGS_TOKEN) {
-        return await fetchDiscogsAPI(release.artist, release.title);
+        const { coverUrl, discogsId } = await fetchDiscogsAPI(release.artist, release.title);
+        return { url: coverUrl, discogsId };
     }
 
-     return null;
+     return { url: null, discogsId: null };
 }
 
 
@@ -29,17 +30,19 @@ async function fetchDiscogsAPI(artist, album) {
         if (artist) params.append('artist', artist);
         if (album) params.append('release_title', album);
 
-    const res = await fetch(`https://api.discogs.com/database/search?${params}`);
-    if (!res.ok) return null;
+        const res = await fetch(`https://api.discogs.com/database/search?${params}`);
+        if (!res.ok) return { coverUrl: null, discogsId: null };
 
-    const data = await res.json();
-    return (
-        data.results?.[0]?.cover_image ??
-        data.results?.find((r) => r.cover_image)?.cover_image ??
-        null
-    );
+        const data = await res.json();
+        // find the first result that has a cover image.
+        const match = data.results?.[0]?.cover_image
+            ? data.results[0]
+            : data.results?.find((r) => r.cover_image);
+        
+        if (!match) return { coverUrl: null, discogsId: null };
+        return { coverUrl: match.cover_image, discogsId: match.id };
     } catch {
-        return null;
+        return { coverUrl: null, discogsId: null };
     }
 }
  
@@ -102,7 +105,7 @@ async function main() {
     await Promise.all(
         chunk.map(async (release) => {  
         try {
-            const coverUrl = await getCoverUrl(release);
+            const { url: coverUrl, discogsId } = await getCoverUrl(release);
 
             if (!coverUrl) {
             await db.collection('releases').updateOne(
@@ -117,10 +120,14 @@ async function main() {
 
             const description = await describeAlbumCover(coverUrl, release.artist, release.title);
 
+            // build the fields to write - only include discogs_id if we got one.
+            const setFields = { candidate_description: description, candidate_generated_at: new Date() };
+            if (discogsId) setFields.discogs_id = discogsId;
+
             // writes the description back to MongoDB
             await db.collection('releases').updateOne(  // finds the document with the specifc id and then adds or overwrites the update
                 { _id: release._id },
-                { $set: { candidate_description: description, candidate_generated_at: new Date() } }
+                { $set: setFields }
             );
 
             // increments counter and logs a success line.
