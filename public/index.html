@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Album Cover Review</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <main class="app-shell">
+    <header class="app-header">
+      <p class="eyebrow">VLM Training Review</p>
+      <h1>Album Cover Description Review</h1>
+    </header>
+
+    <section class="review-layout">
+
+      <div class="cover-frame">
+        <img id="cover" alt="">
+      </div>
+
+      <div class="panel">
+
+        <h2 id="albumTitle">Loading...</h2>
+
+        <div class="description-block">
+          <span class="section-label">Generated description</span>
+          <p id="description">
+            Lorem ipsum dolor sit amet, consectetur adipiscing elit.
+          </p>
+        </div>
+
+        <div class="buttons">
+          <button id="approveBtn" class="button button-approve">
+            Approve
+          </button>
+
+          <button id="denyBtn" class="button button-deny">
+            Deny
+          </button>
+
+          <button id="nextBtn" class="button button-next">
+            Next
+          </button>
+        </div>
+
+        <div id="denyPanel" class="deny-panel" hidden>
+          <label for="denyReason">Denial notes</label>
+          <textarea
+            id="denyReason"
+            placeholder="Optional: Explain why you rejected this description, Or give your ideal description for the album"
+          ></textarea>
+
+          <button id="confirmDenyBtn" class="button button-deny">
+            Confirm
+          </button>
+        </div>
+
+        <p id="status" role="status"></p>
+
+      </div>
+
+    </section>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>
