@@ -8,7 +8,7 @@ const imagesDir = path.join(__dirname, "images")
 const outputFile = path.join(__dirname, "compare.json")
 const prompt = `Describe this album cover. Your response will be used as alt text and should conform to WCAG 2.1 guidelines. Output only 1-3 sentences, the first sentence beginning with "album cover of: "`
 
-const MODELS = ["qwen3-vl:8b", "qwen3-vl:32b"]
+const MODELS = ["qwen3-vl-8b", "qwen3-vl-32b"]
 
 const files = await fs.readdir(imagesDir)
 const results = {}
