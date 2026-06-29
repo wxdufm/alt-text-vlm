@@ -1,5 +1,5 @@
-require('dotenv').config();
-const { MongoClient } = require('mongodb');
+import 'dotenv/config';
+import { MongoClient } from 'mongodb';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'https://api.wxdu.art';
 const DISCOGS_TOKEN = process.env.DISCOGS_TOKEN || null;

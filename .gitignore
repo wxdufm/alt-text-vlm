@@ -5,3 +5,4 @@ models/
 .cache/
 /sqldocker/
 .env
+node_modules/
