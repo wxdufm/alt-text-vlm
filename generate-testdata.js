@@ -1,6 +1,7 @@
 import 'dotenv/config';
 import pg from 'pg';
 import sharp from 'sharp';
+import { readFileSync } from 'fs';
 
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'https://api.wxdu.art';
@@ -9,6 +10,7 @@ const CONCURRENCY = 3;
 const LOCAL_URL = 'http://localhost:11434';
 const MODEL = 'qwen3-vl-30b';
 const DHASH_THRESHOLD = 8;
+const PROMPT_TEMPLATE = readFileSync('prompts/wxdu_alt_text_prompt.txt', 'utf-8');
 
 async function computeDhash(buffer) {
     const { data } = await sharp(buffer)
@@ -95,15 +97,16 @@ async function fetchDiscogsAPI(artist, album) {
 async function describeAlbumCover(imageBuffer, artist, title) {
     const base64 = Buffer.from(imageBuffer).toString('base64');
 
+    const prompt = PROMPT_TEMPLATE
+        .replace('{{artist}}', artist)
+        .replace('{{title}}', title);
 
-    // sends the request to the local Ollama server running
     const res = await fetch(`${LOCAL_URL}/api/generate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
             model: MODEL,
-            // prompt given to the model for generation — can be fine-tuned
-            prompt: `This is the album cover for "${title}" by ${artist}. Describe it in 2–3 sentences for a blind or low-vision listener. Include what is visually depicted, the dominant colors and visual style, any visible text other than the artist name and album title, and the mood the image conveys. Be specific and evocative.`,
+            prompt,
             images: [base64],
             stream: false,
         }),
@@ -111,8 +114,20 @@ async function describeAlbumCover(imageBuffer, artist, title) {
 
     if (!res.ok) throw new Error(`Ollama error: ${res.status}`);
     const data = await res.json();
-    return data.response;
+
+    const descMatch = data.response.match(/<description>([\s\S]*?)<\/description>/);
+    const confMatch = data.response.match(/<confidence-score>([\s\S]*?)<\/confidence-score>/);
+    const reasonMatch = data.response.match(/<confidence-reasoning>([\s\S]*?)<\/confidence-reasoning>/);
+
+    if (!descMatch) throw new Error('Model response missing <description> tag');
+
+    return {
+        description: descMatch[1].trim(),
+        confidence: confMatch ? parseInt(confMatch[1].trim(), 10) : null,
+        reasoning: reasonMatch ? reasonMatch[1].trim() : null,
+    };
 }
+
 
 
 async function main() {
@@ -184,13 +199,18 @@ async function main() {
                 return;
             }
 
-            const description = await describeAlbumCover(imageBuffer, release.artist, release.title);
+            const { description, confidence, reasoning } = await describeAlbumCover(imageBuffer, release.artist, release.title);
+
+            const needsReview = confidence === 0;
+            const reviewTriggers = (needsReview && reasoning && reasoning !== 'N/A')
+                ? JSON.stringify([reasoning])
+                : null;
 
             const result = await pool.query(
-                `INSERT INTO releases (artist, title, cover_hash, cover_url, alt_text)
-                 VALUES ($1, $2, $3::bit(64), $4, $5)
-                 RETURNING id`,
-                [release.artist, release.title, dhash, coverUrl, description]
+                `INSERT INTO releases (artist, title, cover_hash, cover_url, alt_text, confidence, needs_review, review_triggers)
+                VALUES ($1, $2, $3::bit(64), $4, $5, $6, $7, $8::jsonb)
+                RETURNING id`,
+                [release.artist, release.title, dhash, coverUrl, description, confidence, needsReview, reviewTriggers]
             );
             const releaseId = result.rows[0].id;
 
