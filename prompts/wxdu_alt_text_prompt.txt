@@ -1,0 +1,135 @@
+You are generating an accessibility description (alt text) for an album cover image, for blind and low-vision listeners. This must conform to WCAG 2.2 Success Criterion 1.1.1 (Non-text Content).
+
+Album metadata, for context only — do not repeat this information in your description unless it is visibly printed on the artwork itself:
+Artist: {{artist}}
+Album title: {{title}}
+
+
+## BELOW IS EVERYTHING FROM THE STYLE GUIDE. YOU MUST FOLLOW THIS DEFINED CRITERIA EXACTLY ##
+
+Alt text guidelines
+Basics
+The purpose of the alt text is to provide an equivalent textual alternative for the album artwork to users who cannot see it, in accordance with WCAG 2.2 Success Criterion 1.1.1 (Non-text Content).
+The alt text should be concise. As a project guideline, descriptions should generally not exceed 25 words or 3 sentences, unless additional detail is necessary to preserve important visual information. (Note: WCAG does not prescribe a maximum length; this is a project-specific guideline.)
+The first sentence should describe the primary visual subject or composition of the cover.
+Additional sentences may describe typography, color palette, artistic style, or other visually significant elements.
+The description should be understandable without requiring the listener to see the image.
+The purpose of the description is not to enumerate every visible detail, but to provide a blind or low-vision user with an understanding of the artwork that is functionally equivalent to what a sighted user would reasonably perceive when viewing the cover in the context of a musical release. The level of detail should be sufficient to communicate the artwork's primary visual content, composition, and aesthetic character without becoming exhaustive. 
+
+Context
+The image being described is an album cover. The description should therefore be written with the assumption that the artwork is part of a musical release rather than a standalone photograph or illustration.
+Potential use cases include:
+Music streaming and playback interfaces
+Album review websites
+Digital music libraries
+Discogs and MusicBrainz integrations
+Radio station playlists
+Screen reader users browsing music collections
+Music archive and preservation projects
+
+What to include
+Describe information that contributes to understanding the artwork.
+Examples include:
+Main subject(s)
+Composition and layout
+Artistic medium (photograph, painting, collage, illustration, digital art, etc.)
+Dominant colors and color palette
+Typography and visible text when it is readable and visually significant
+Visual style (minimalist, psychedelic, collage, zine-inspired, geometric, surreal, etc.)
+Overall aesthetic impression when it is directly supported by visible visual features
+Relationships between major visual elements
+
+
+Tone and register
+Descriptions should be:
+Neutral
+Objective
+Concise
+Accessible
+Written in complete sentences
+However, because the domain is music artwork, descriptions may use vocabulary commonly used in visual art and album design, such as:
+collage
+hand-drawn
+monochrome
+psychedelic
+grainy
+minimalist
+photocopied
+mixed-media
+geometric
+surreal
+The description should read like an accessibility description written by someone familiar with album artwork, not like an art review or music criticism.
+
+Use of additionally provided metadata
+The model may receive metadata such as:
+artist
+album title
+This metadata is intended only to provide context during generation.
+The generated alt text should not repeat artist names, album titles, release dates, genres, or other metadata unless that information is visibly present on the artwork. This is under the presumption that this information will appear in close proximity to the album cover under any use case.
+Specific cases
+People
+Describe visible appearance only.
+Avoid identifying people by name unless their identity is explicitly provided and necessary for describing the artwork.
+Do not infer:
+emotions
+occupation
+identity
+relationships
+unless visually evident.
+
+Abstract covers
+Describe:
+colors
+shapes
+textures
+composition
+patterns
+artistic techniques
+Do not invent symbolic meaning.
+Instead of:
+"Representing loneliness."
+Prefer:
+"Large black geometric forms surrounding a single white circle."
+Visible text & typography-only covers
+If text is readable and forms an important part of the artwork:
+include the visible text
+briefly describe typography
+mention placement when relevant
+If text cannot be read confidently, state that it is partially illegible rather than guessing.
+Variants
+Descriptions should correspond only to the specific artwork being processed.
+Do not assume that alternate pressings or releases share identical artwork unless confirmed by image matching.
+
+Sensitive content
+Describe sensitive imagery factually without censorship or sensationalism.
+This includes:
+nudity
+violence
+self-harm imagery
+hate symbols
+religious imagery
+Only describe what is visibly present.
+Avoid interpreting intent.
+
+
+Possible Contributions to Lower Confidence
+The cover contains text that the model cannot reliably read.
+The model may have misidentified a person.
+The image includes culturally specific symbols the model may not understand.
+The artwork includes hate symbols, slurs, explicit violence, nudity, or other sensitive material.
+The image quality is too poor for a confident description.
+The cover is a variant and metadata may not match the image.
+The description depends on historical, political, religious, or cultural context.
+The model’s confidence is low about the main subject.
+The alt text does not conform to WCAG 2.2 standards.
+
+
+After the description, rate your confidence as 0 or 1:
+- 1 = the main subject(s) are clearly identifiable, image quality is sufficient, and you did not need to guess at unclear elements.
+- 0 = any of the above is not true.
+If your confidence is 0, explain specifically what was unclear (e.g. low resolution, small subjects, illegible text, ambiguous composition).
+
+Respond in exactly this format and nothing else:
+<description>Your description here.</description>
+<confidence-score>0 or 1</confidence-score>
+<confidence-reasoning>Your reasoning here, or "N/A" if confidence is 1.</confidence-reasoning>

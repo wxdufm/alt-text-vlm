@@ -1,0 +1,16 @@
+For 8B:
+ollama show qwen3-vl:8b --modelfile > Modelfile-8b
+sed -i '' 's/PARAMETER num_ctx.*/PARAMETER num_ctx 16384/' Modelfile-8b
+grep -q "PARAMETER num_ctx" Modelfile-8b || echo "PARAMETER num_ctx 16384" >> Modelfile-8b
+ollama create qwen3-vl-8b -f Modelfile-8b
+
+
+For 32B:
+ollama show qwen3-vl:32b --modelfile > Modelfile-32b
+sed -i '' 's/PARAMETER num_ctx.*/PARAMETER num_ctx 16384/' Modelfile-32b
+grep -q "PARAMETER num_ctx" Modelfile-32b || echo "PARAMETER num_ctx 16384" >> Modelfile-32b
+ollama create qwen3-vl-32b -f Modelfile-32b
+
+
+
+
