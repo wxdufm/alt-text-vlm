@@ -17,7 +17,8 @@ CREATE TABLE releases (
 
 CREATE TABLE release_ids (
     id              SERIAL      PRIMARY KEY,
-    release_id      UUID        NOT NULL REFERENCES releases(id),
+    release_id      UUID        REFERENCES releases(id),
+    wxdu_release_id TEXT        UNIQUE,
     discogs_id      TEXT        UNIQUE,
     musicbrainz_id  TEXT        UNIQUE,
     created_at      TIMESTAMP   NOT NULL DEFAULT NOW()

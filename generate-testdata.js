@@ -1,5 +1,4 @@
 import 'dotenv/config';
-import { MongoClient } from 'mongodb';
 import pg from 'pg';
 import sharp from 'sharp';
 
@@ -39,11 +38,26 @@ async function findDuplicate(pool, dhash) {
     return result.rows[0] || null;
 }
 
+// fetches one page of releases from the Marc's public API
+async function fetchReleasePage(offset) {
+    const res = await fetch(`${API_BASE}/api/releases?limit=100&offset=${offset}`)
+    if(!res.ok) throw new Error(`API error: ${res.status}`);
+    return res.json();
+}
+
+// checks if a WXDU release is already tracked in Postgres
+async function alreadyProcessed(pool, wxduReleaseId) {
+    const result = await pool.query(
+        `SELECT 1 FROM release_ids WHERE wxdu_release_id = $1`,
+        [wxduReleaseId]
+    );
+    return result.rows.length > 0;
+}
 
 // if downloads_db_id exists, it uses the local API, if not it falls back to Discogs.
 async function getCoverUrl(release) {
-    if (release.downloads_db_id) {
-        return { url: `${API_BASE}/api/releases/${release._id}/cover?size=small`, discogsId: null };
+    if (release.cover_url) {
+        return { url: `${API_BASE}${release.cover_url}?size=small`, discogsId: null };
     }
 
     if (DISCOGS_TOKEN) {
@@ -103,24 +117,23 @@ async function describeAlbumCover(imageBuffer, artist, title) {
 
 async function main() {
     const { Pool } = pg;
-    const mongo = new MongoClient(process.env.MONGO_URI);
-    await mongo.connect();
-    const db = mongo.db();
     const pool = new Pool({ connectionString: process.env.PG_URI });
 
+    const TARGET = 1000;
+    const releases = [];
+    let offset = 0;
 
-    const releases = await db
-        .collection('releases')
-        .find(
-            {
-            candidate_description: { $exists: false },  // looking for entries without the description
-            no_cover: { $exists: false },  // want entries with covers
-            },
-            { projection: { _id: 1, artist: 1, title: 1, downloads_db_id: 1 } }
-        )
-        .limit(1000)  // only pull 500 releases into the queue.
-        .toArray();  // loads the matching document into memory as an array
+    while (releases.length < TARGET) {
+        const page = await fetchReleasePage(offset);
+        if (page.length === 0) break;
 
+        for (const release of page) {
+            if (releases.length >= TARGET) break;
+            if (await alreadyProcessed(pool, release._id)) continue;
+            releases.push(release);
+        }
+        offset += 100;
+    }
 
     // logs queue size
     console.log(`Found ${releases.length} releases to process`);
@@ -143,14 +156,15 @@ async function main() {
             const { url: coverUrl, discogsId } = await getCoverUrl(release);
 
             if (!coverUrl) {
-            await db.collection('releases').updateOne(
-                { _id: release._id },
-                { $set: { no_cover: true } }
-            );
-
-            skipped++;
-            console.log(`[${done + duped + failed + skipped}/${releases.length}] ○ ${release.artist} — ${release.title}: no cover`);
-            return;
+                await pool.query(
+                    `INSERT INTO release_ids (wxdu_release_id)
+                    VALUES ($1)
+                    ON CONFLICT (wxdu_release_id) DO NOTHING`,
+                    [release._id]
+                );
+                skipped++;
+                console.log(`[${done + duped + failed + skipped}/${releases.length}] ○ ${release.artist} — ${release.title}: no cover`);
+                return;
             }
 
             const imageRes = await fetch(coverUrl);
@@ -160,10 +174,10 @@ async function main() {
 
             if (duplicate) {
                 await pool.query(
-                    `INSERT INTO release_ids (release_id, discogs_id)
-                     VALUES ($1, $2)
-                     ON CONFLICT (discogs_id) DO NOTHING`,
-                    [duplicate.id, discogsId]
+                    `INSERT INTO release_ids (release_id, wxdu_release_id, discogs_id)
+                     VALUES ($1, $2, $3)
+                     ON CONFLICT (wxdu_release_id) DO NOTHING`,
+                    [duplicate.id, release._id, discogsId]
                 );
                 duped++;
                 console.log(`[${done + duped + failed + skipped}/${releases.length}] ≈ ${release.artist} — ${release.title}: duplicate cover`);
@@ -181,10 +195,10 @@ async function main() {
             const releaseId = result.rows[0].id;
 
             await pool.query(
-                `INSERT INTO release_ids (release_id, discogs_id)
-                 VALUES ($1, $2)
-                 ON CONFLICT (discogs_id) DO NOTHING`,
-                [releaseId, discogsId]
+                `INSERT INTO release_ids (release_id, wxdu_release_id, discogs_id)
+                VALUES ($1, $2, $3)
+                ON CONFLICT (wxdu_release_id) DO NOTHING`,
+                [releaseId, release._id, discogsId]
             );
 
             done++;
@@ -202,7 +216,6 @@ async function main() {
     
     // summary line at the end.
     console.log(`\nDone: ${done} generated, ${duped} duplicates, ${skipped} skipped (no cover), ${failed} failed`);
-    await mongo.close();
     await pool.end();
 }
 
