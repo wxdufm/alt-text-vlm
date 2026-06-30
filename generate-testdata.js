@@ -7,7 +7,7 @@ const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'https://api.wxdu.art';
 const DISCOGS_TOKEN = process.env.DISCOGS_TOKEN || null;
 const CONCURRENCY = 3;
 const LOCAL_URL = 'http://localhost:11434';
-const MODEL = 'qwen2.5-vl-30b';
+const MODEL = 'qwen3-vl-30b';
 const DHASH_THRESHOLD = 8;
 
 async function computeDhash(buffer) {
