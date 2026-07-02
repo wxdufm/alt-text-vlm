@@ -26,6 +26,20 @@
           <p id="artistName">By: Loading...</p>
         </div>
 
+        <div class="review-facts">
+          <div class="fact-block">
+            <span class="section-label">Confidence score</span>
+            <p id="confidenceScore">Loading...</p>
+          </div>
+
+          <div class="fact-block">
+            <span class="section-label">Review triggers</span>
+            <ul id="reviewTriggers">
+              <li>Loading...</li>
+            </ul>
+          </div>
+        </div>
+
         <div class="description-block">
           <span class="section-label">Generated description</span>
           <p id="description">
@@ -48,15 +62,16 @@
         </div>
 
         <div id="denyPanel" class="deny-panel" hidden>
-          <label for="denyReason">Denial notes</label>
+          <label for="denyReason">Corrected alt text</label>
           <textarea
             id="denyReason"
-            placeholder="Optional: Explain why you rejected this description, Or give your ideal description for the album cover"
+            required
+            placeholder="Write the corrected alt text that should replace the AI description"
           ></textarea>
 
           <div class="deny-actions">
             <button id="confirmDenyBtn" class="button button-deny">
-              Confirm
+              Save correction
             </button>
 
             <button id="cancelDenyBtn" class="button button-cancel">

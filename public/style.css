@@ -91,6 +91,37 @@ h2 {
   line-height: 1.35;
 }
 
+.review-facts {
+  display: grid;
+  grid-template-columns: minmax(0, 160px) minmax(0, 1fr);
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.fact-block {
+  min-width: 0;
+}
+
+#confidenceScore,
+#reviewTriggers {
+  margin: 0;
+  padding: 12px;
+  border: 1px solid #d7dee8;
+  border-radius: 8px;
+  background: #f8fafc;
+  color: #263247;
+  font-size: 15px;
+  line-height: 1.45;
+}
+
+#reviewTriggers {
+  padding-left: 30px;
+}
+
+#reviewTriggers li + li {
+  margin-top: 6px;
+}
+
 .description-block {
   margin-bottom: 20px;
 }
@@ -220,6 +251,10 @@ h2 {
 
   .panel {
     padding: 22px;
+  }
+
+  .review-facts {
+    grid-template-columns: 1fr;
   }
 
   .button {
