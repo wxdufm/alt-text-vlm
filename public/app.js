@@ -1,4 +1,6 @@
 let currentRelease = null;
+let reviewerName = "";
+let skippedReleaseIds = [];
 
 const cover = document.getElementById("cover");
 const albumTitle = document.getElementById("albumTitle");
@@ -14,8 +16,12 @@ const denyPanel = document.getElementById("denyPanel");
 const denyReason = document.getElementById("denyReason");
 const confirmDenyBtn = document.getElementById("confirmDenyBtn");
 const cancelDenyBtn = document.getElementById("cancelDenyBtn");
+const reviewerNameInput = document.getElementById("reviewerName");
+const saveReviewerBtn = document.getElementById("saveReviewerBtn");
+const reviewerHelp = document.getElementById("reviewerHelp");
 
 const loadingDescription = "Loading generated description...";
+const reviewerStorageKey = "vlm-reviewer-name";
 
 function setStatus(message, type = "") {
   status.textContent = message;
@@ -27,8 +33,62 @@ function setStatus(message, type = "") {
   }
 }
 
+function normalizeReviewerName(value) {
+  if (typeof value !== "string") {
+    return "";
+  }
+
+  return value.trim().slice(0, 120);
+}
+
+function setReviewerHelp(message) {
+  reviewerHelp.textContent = message;
+}
+
+function setReviewerName(nextReviewerName) {
+  reviewerName = normalizeReviewerName(nextReviewerName);
+  reviewerNameInput.value = reviewerName;
+
+  try {
+    if (reviewerName) {
+      localStorage.setItem(reviewerStorageKey, reviewerName);
+    } else {
+      localStorage.removeItem(reviewerStorageKey);
+    }
+  } catch (err) {
+    console.warn("Failed to persist reviewer name", err);
+  }
+}
+
+function resetSkippedReleaseIds() {
+  skippedReleaseIds = [];
+}
+
+function rememberSkippedReleaseId(releaseId) {
+  if (!releaseId) {
+    return;
+  }
+
+  if (!skippedReleaseIds.includes(releaseId)) {
+    skippedReleaseIds.push(releaseId);
+  }
+}
+
+function loadStoredReviewerName() {
+  try {
+    return normalizeReviewerName(localStorage.getItem(reviewerStorageKey) || "");
+  } catch (err) {
+    console.warn("Failed to read reviewer name", err);
+    return "";
+  }
+}
+
 function setButtonsLoading(isLoading) {
-  skipBtn.disabled = isLoading;
+  const hasReviewer = reviewerName !== "";
+
+  saveReviewerBtn.disabled = isLoading;
+  reviewerNameInput.disabled = isLoading;
+  skipBtn.disabled = isLoading || !hasReviewer;
   approveBtn.disabled = isLoading || !currentRelease;
   denyBtn.disabled = isLoading || !currentRelease;
   confirmDenyBtn.disabled =
@@ -91,7 +151,35 @@ function renderReviewTriggers(value) {
   }
 }
 
-async function loadRelease() {
+function resetReleaseCard() {
+  currentRelease = null;
+  albumTitle.textContent = reviewerName
+    ? "Album: Ready to load"
+    : "Album: Waiting for reviewer";
+  artistName.textContent = reviewerName
+    ? "By: Press Load next to claim a release"
+    : "By: Save your reviewer name to start";
+  confidenceScore.textContent = reviewerName
+    ? "Not loaded"
+    : "Enter reviewer name";
+  reviewTriggers.replaceChildren(Object.assign(document.createElement("li"), {
+    textContent: reviewerName ? "No release loaded" : "Reviewer required"
+  }));
+  description.textContent = reviewerName
+    ? "Claim a release to start reviewing."
+    : "Enter your reviewer name before loading albums.";
+  cover.removeAttribute("src");
+  cover.alt = "";
+  hideDenyPanel();
+}
+
+async function claimRelease(options = {}) {
+  if (!reviewerName) {
+    setStatus("Reviewer name is required before loading albums.", "error");
+    reviewerNameInput.focus();
+    return;
+  }
+
   currentRelease = null;
   albumTitle.textContent = "Album: Loading...";
   artistName.textContent = "By: Loading...";
@@ -106,13 +194,29 @@ async function loadRelease() {
   setStatus("");
   setButtonsLoading(true);
 
+  const requestBody = {
+    reviewer: reviewerName
+  };
+
+  if (options.excludeReleaseIds?.length) {
+    requestBody.excludeReleaseIds = options.excludeReleaseIds;
+  }
+
   try {
-    const res = await fetch("/api/release");
-    const release = await res.json();
+    const res = await fetch("/api/releases/claim", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(requestBody)
+    });
+    const payload = await res.json();
 
     if (!res.ok) {
-      throw new Error(release.error || `Request failed with status ${res.status}`);
+      throw new Error(payload.error || `Request failed with status ${res.status}`);
     }
+
+    const release = payload.release;
 
     if (!release?.cover_url) {
       throw new Error("API response did not include cover_url.");
@@ -144,13 +248,34 @@ async function loadRelease() {
     setStatus("");
   } catch (err) {
     console.error(err);
-    albumTitle.textContent = "Album: No release loaded";
-    artistName.textContent = "By: Unknown Artist";
-    confidenceScore.textContent = "Not available";
-    renderReviewTriggers([]);
+    resetReleaseCard();
     setStatus(err.message, "error");
   } finally {
     setButtonsLoading(false);
+  }
+}
+
+async function releaseClaim() {
+  if (!currentRelease || !reviewerName) {
+    return;
+  }
+
+  const res = await fetch(
+    `/api/release/${encodeURIComponent(currentRelease.id)}/release`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        reviewer: reviewerName
+      })
+    }
+  );
+  const payload = await res.json();
+
+  if (!res.ok) {
+    throw new Error(payload.error || `Request failed with status ${res.status}`);
   }
 }
 
@@ -160,7 +285,31 @@ cover.addEventListener("error", () => {
   setStatus("Image failed to load. Check the cover_url value.", "error");
 });
 
-skipBtn.addEventListener("click", loadRelease);
+skipBtn.addEventListener("click", async () => {
+  if (!reviewerName) {
+    setStatus("Reviewer name is required before loading albums.", "error");
+    reviewerNameInput.focus();
+    return;
+  }
+
+  setButtonsLoading(true);
+  setStatus(currentRelease ? "Releasing claim..." : "Loading next release...");
+
+  try {
+    const skippedReleaseId = currentRelease?.id || null;
+
+    if (currentRelease) {
+      rememberSkippedReleaseId(skippedReleaseId);
+      await releaseClaim();
+    }
+
+    await claimRelease({ excludeReleaseIds: skippedReleaseIds });
+  } catch (err) {
+    console.error(err);
+    setStatus(err.message, "error");
+    setButtonsLoading(false);
+  }
+});
 
 async function saveReview(approved, correctedAltText = "") {
   if (!currentRelease) return;
@@ -177,6 +326,7 @@ async function saveReview(approved, correctedAltText = "") {
           "Content-Type": "application/json"
         },
         body: JSON.stringify({
+          reviewer: reviewerName,
           approved,
           correctedAltText
         })
@@ -189,7 +339,7 @@ async function saveReview(approved, correctedAltText = "") {
     }
 
     hideDenyPanel();
-    await loadRelease();
+    await claimRelease();
   } catch (err) {
     console.error(err);
     setStatus(err.message, "error");
@@ -238,4 +388,59 @@ cancelDenyBtn.addEventListener("click", () => {
   setStatus("");
 });
 
-loadRelease();
+saveReviewerBtn.addEventListener("click", async () => {
+  const nextReviewerName = normalizeReviewerName(reviewerNameInput.value);
+
+  if (!nextReviewerName) {
+    setStatus("Reviewer name is required before loading albums.", "error");
+    reviewerNameInput.focus();
+    return;
+  }
+
+  const shouldSwitchReviewer = currentRelease && nextReviewerName !== reviewerName;
+
+  setButtonsLoading(true);
+  setStatus(shouldSwitchReviewer ? "Switching reviewer..." : "");
+
+  try {
+    if (shouldSwitchReviewer) {
+      await releaseClaim();
+    }
+
+    resetSkippedReleaseIds();
+    setReviewerName(nextReviewerName);
+    setReviewerHelp(`Reviews will be saved as ${reviewerName}.`);
+    setStatus("");
+    resetReleaseCard();
+
+    await claimRelease();
+  } catch (err) {
+    console.error(err);
+    setStatus(err.message, "error");
+  } finally {
+    setButtonsLoading(false);
+  }
+});
+
+reviewerNameInput.addEventListener("keydown", (event) => {
+  if (event.key === "Enter") {
+    event.preventDefault();
+    saveReviewerBtn.click();
+  }
+});
+
+setReviewerName(loadStoredReviewerName());
+resetSkippedReleaseIds();
+
+if (reviewerName) {
+  setReviewerHelp(`Reviews will be saved as ${reviewerName}.`);
+} else {
+  setReviewerHelp("Enter your reviewer name before loading albums.");
+}
+
+resetReleaseCard();
+setButtonsLoading(false);
+
+if (reviewerName) {
+  claimRelease();
+}

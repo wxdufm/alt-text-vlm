@@ -2,6 +2,7 @@
 <html>
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Album Cover Review</title>
   <link rel="stylesheet" href="style.css">
 </head>
@@ -21,9 +22,28 @@
 
       <div class="panel">
 
+        <div class="reviewer-panel">
+          <label class="section-label" for="reviewerName">Reviewer name</label>
+          <div class="reviewer-row">
+            <input
+              id="reviewerName"
+              type="text"
+              maxlength="120"
+              autocomplete="name"
+              placeholder="Enter the name you want saved with your reviews"
+            >
+            <button id="saveReviewerBtn" class="button button-next" type="button">
+              Save reviewer
+            </button>
+          </div>
+          <p id="reviewerHelp" class="reviewer-help">
+            Enter your reviewer name before loading albums.
+          </p>
+        </div>
+
         <div class="release-meta">
-          <h2 id="albumTitle">Album: Loading...</h2>
-          <p id="artistName">By: Loading...</p>
+          <h2 id="albumTitle">Album: Waiting for reviewer</h2>
+          <p id="artistName">By: Save your reviewer name to start</p>
         </div>
 
         <div class="review-facts">
