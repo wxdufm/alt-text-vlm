@@ -1,12 +1,14 @@
 let currentRelease = null;
 let reviewerName = "";
 let skippedReleaseIds = [];
+let reviewTriggerDefinitions = [];
 
 const cover = document.getElementById("cover");
 const albumTitle = document.getElementById("albumTitle");
 const artistName = document.getElementById("artistName");
 const confidenceScore = document.getElementById("confidenceScore");
 const reviewTriggers = document.getElementById("reviewTriggers");
+const confidenceExplanation = document.getElementById("confidenceExplanation");
 const description = document.getElementById("description");
 const status = document.getElementById("status");
 const skipBtn = document.getElementById("skipBtn");
@@ -14,6 +16,15 @@ const approveBtn = document.getElementById("approveBtn");
 const denyBtn = document.getElementById("denyBtn");
 const denyPanel = document.getElementById("denyPanel");
 const denyReason = document.getElementById("denyReason");
+const denyConfidence = document.getElementById("denyConfidence");
+const denyConfidenceExplanation = document.getElementById(
+  "denyConfidenceExplanation"
+);
+const denyTriggerOptions = document.getElementById("denyTriggerOptions");
+const denyTriggers = document.getElementById("denyTriggers");
+const newTriggerName = document.getElementById("newTriggerName");
+const newTriggerDescription = document.getElementById("newTriggerDescription");
+const addTriggerBtn = document.getElementById("addTriggerBtn");
 const confirmDenyBtn = document.getElementById("confirmDenyBtn");
 const cancelDenyBtn = document.getElementById("cancelDenyBtn");
 const reviewerNameInput = document.getElementById("reviewerName");
@@ -39,6 +50,23 @@ function normalizeReviewerName(value) {
   }
 
   return value.trim().slice(0, 120);
+}
+
+function normalizeTriggerName(value) {
+  if (typeof value !== "string") {
+    return "";
+  }
+
+  return value.trim().replace(/\s+/g, " ").toLowerCase();
+}
+
+function normalizeOptionalText(value) {
+  if (typeof value !== "string") {
+    return null;
+  }
+
+  const normalized = value.trim();
+  return normalized === "" ? null : normalized;
 }
 
 function setReviewerHelp(message) {
@@ -85,6 +113,7 @@ function loadStoredReviewerName() {
 
 function setButtonsLoading(isLoading) {
   const hasReviewer = reviewerName !== "";
+  const denyHasAltText = denyReason.value.trim() !== "";
 
   saveReviewerBtn.disabled = isLoading;
   reviewerNameInput.disabled = isLoading;
@@ -94,13 +123,32 @@ function setButtonsLoading(isLoading) {
   confirmDenyBtn.disabled =
     isLoading ||
     !currentRelease ||
-    (!denyPanel.hidden && denyReason.value.trim() === "");
+    (!denyPanel.hidden && !denyHasAltText);
   cancelDenyBtn.disabled = isLoading;
+  addTriggerBtn.disabled = isLoading;
+  newTriggerName.disabled = isLoading;
+  newTriggerDescription.disabled = isLoading;
+
+  for (const input of denyTriggerOptions.querySelectorAll("input")) {
+    input.disabled = isLoading;
+  }
+}
+
+function createListPlaceholder(message) {
+  const item = document.createElement("li");
+  item.textContent = message;
+  return item;
 }
 
 function hideDenyPanel() {
   denyPanel.hidden = true;
   denyReason.value = "";
+  denyConfidence.value = "";
+  denyConfidenceExplanation.value = "";
+  newTriggerName.value = "";
+  newTriggerDescription.value = "";
+  renderTriggerOptions([]);
+  syncSelectedTriggersOutput();
   setButtonsLoading(false);
 }
 
@@ -119,36 +167,175 @@ function formatConfidence(value) {
 }
 
 function normalizeReviewTriggers(value) {
-  if (!value) return [];
+  if (!value) {
+    return [];
+  }
 
   if (Array.isArray(value)) {
-    return value.map(String).filter(Boolean);
+    return value
+      .map((item) => normalizeTriggerName(String(item)))
+      .filter(Boolean);
   }
 
-  if (typeof value === "object") {
-    return Object.entries(value).map(([key, trigger]) => `${key}: ${trigger}`);
+  return [normalizeTriggerName(String(value))].filter(Boolean);
+}
+
+function getTriggerDescription(trigger) {
+  const definition = reviewTriggerDefinitions.find(
+    (item) => item.trigger === trigger
+  );
+
+  return definition?.trigger_description || null;
+}
+
+function createTriggerDescriptionDetails(trigger) {
+  const triggerDescription = getTriggerDescription(trigger);
+
+  if (!triggerDescription) {
+    return null;
   }
 
-  return [String(value)];
+  const details = document.createElement("details");
+  details.className = "trigger-details";
+
+  const summary = document.createElement("summary");
+  summary.textContent = "What this means";
+  details.append(summary);
+
+  const body = document.createElement("p");
+  body.textContent = triggerDescription;
+  details.append(body);
+
+  return details;
 }
 
 function renderReviewTriggers(value) {
   const triggers = normalizeReviewTriggers(value);
-
   reviewTriggers.replaceChildren();
 
   if (triggers.length === 0) {
-    const item = document.createElement("li");
-    item.textContent = "None";
-    reviewTriggers.append(item);
+    reviewTriggers.append(createListPlaceholder("None"));
     return;
   }
 
   for (const trigger of triggers) {
     const item = document.createElement("li");
-    item.textContent = trigger;
+    item.className = "trigger-list-item";
+
+    const name = document.createElement("span");
+    name.className = "trigger-name";
+    name.textContent = trigger;
+    item.append(name);
+
+    const details = createTriggerDescriptionDetails(trigger);
+
+    if (details) {
+      item.append(details);
+    }
+
     reviewTriggers.append(item);
   }
+}
+
+function renderConfidenceExplanation(value) {
+  confidenceExplanation.textContent =
+    normalizeOptionalText(value) || "None";
+}
+
+function formatEditableConfidence(value) {
+  const numericValue = Number(value);
+
+  if (!Number.isFinite(numericValue)) {
+    return "";
+  }
+
+  return String(numericValue);
+}
+
+function getSelectedTriggerValues() {
+  return Array.from(
+    denyTriggerOptions.querySelectorAll('input[name="denyReviewTrigger"]:checked')
+  )
+    .map((input) => normalizeTriggerName(input.value))
+    .filter(Boolean);
+}
+
+function syncSelectedTriggersOutput() {
+  denyTriggers.value = getSelectedTriggerValues().join("\n");
+}
+
+function renderTriggerOptions(selectedTriggers) {
+  const selected = new Set(selectedTriggers);
+  denyTriggerOptions.replaceChildren();
+
+  if (reviewTriggerDefinitions.length === 0) {
+    const empty = document.createElement("p");
+    empty.className = "trigger-options-empty";
+    empty.textContent = "No review triggers are available yet.";
+    denyTriggerOptions.append(empty);
+    syncSelectedTriggersOutput();
+    return;
+  }
+
+  for (const definition of reviewTriggerDefinitions) {
+    const option = document.createElement("label");
+    option.className = "trigger-option";
+
+    const checkbox = document.createElement("input");
+    checkbox.type = "checkbox";
+    checkbox.name = "denyReviewTrigger";
+    checkbox.value = definition.trigger;
+    checkbox.checked = selected.has(definition.trigger);
+    checkbox.addEventListener("change", () => {
+      syncSelectedTriggersOutput();
+      setButtonsLoading(false);
+    });
+    option.append(checkbox);
+
+    const content = document.createElement("div");
+    content.className = "trigger-option-copy";
+
+    const title = document.createElement("span");
+    title.className = "trigger-option-title";
+    title.textContent = definition.trigger;
+    content.append(title);
+
+    const details = createTriggerDescriptionDetails(definition.trigger);
+
+    if (details) {
+      content.append(details);
+    }
+
+    option.append(content);
+    denyTriggerOptions.append(option);
+  }
+
+  syncSelectedTriggersOutput();
+}
+
+function parseEditedConfidence() {
+  const rawValue = denyConfidence.value.trim();
+
+  if (rawValue === "") {
+    return null;
+  }
+
+  const numericValue = Number(rawValue);
+
+  if (!Number.isFinite(numericValue) || ![0, 1].includes(numericValue)) {
+    throw new Error("Confidence score must be 0 or 1.");
+  }
+
+  return numericValue;
+}
+
+function parseEditedConfidenceExplanation() {
+  return normalizeOptionalText(denyConfidenceExplanation.value);
+}
+
+function parseEditedReviewTriggers() {
+  const selectedTriggers = getSelectedTriggerValues();
+  return selectedTriggers.length > 0 ? selectedTriggers : null;
 }
 
 function resetReleaseCard() {
@@ -157,20 +344,32 @@ function resetReleaseCard() {
     ? "Album: Ready to load"
     : "Album: Waiting for reviewer";
   artistName.textContent = reviewerName
-    ? "By: Press Load next to claim a release"
+    ? "By: Press Skip to claim a release"
     : "By: Save your reviewer name to start";
   confidenceScore.textContent = reviewerName
     ? "Not loaded"
     : "Enter reviewer name";
-  reviewTriggers.replaceChildren(Object.assign(document.createElement("li"), {
-    textContent: reviewerName ? "No release loaded" : "Reviewer required"
-  }));
+  renderReviewTriggers([]);
+  renderConfidenceExplanation(reviewerName ? null : "Reviewer required");
   description.textContent = reviewerName
     ? "Claim a release to start reviewing."
     : "Enter your reviewer name before loading albums.";
   cover.removeAttribute("src");
   cover.alt = "";
   hideDenyPanel();
+}
+
+async function loadReviewTriggerDefinitions() {
+  const res = await fetch("/api/review-trigger-definitions");
+  const payload = await res.json();
+
+  if (!res.ok) {
+    throw new Error(payload.error || `Request failed with status ${res.status}`);
+  }
+
+  reviewTriggerDefinitions = Array.isArray(payload.definitions)
+    ? payload.definitions
+    : [];
 }
 
 async function claimRelease(options = {}) {
@@ -184,9 +383,8 @@ async function claimRelease(options = {}) {
   albumTitle.textContent = "Album: Loading...";
   artistName.textContent = "By: Loading...";
   confidenceScore.textContent = "Loading...";
-  reviewTriggers.replaceChildren(Object.assign(document.createElement("li"), {
-    textContent: "Loading..."
-  }));
+  reviewTriggers.replaceChildren(createListPlaceholder("Loading..."));
+  renderConfidenceExplanation("Loading...");
   description.textContent = loadingDescription;
   cover.removeAttribute("src");
   cover.alt = "";
@@ -243,6 +441,7 @@ async function claimRelease(options = {}) {
 
     confidenceScore.textContent = formatConfidence(release.confidence);
     renderReviewTriggers(release.review_triggers);
+    renderConfidenceExplanation(release.confidence_explanation);
     description.textContent =
       release.alt_text || "No generated description is available.";
     setStatus("");
@@ -280,7 +479,9 @@ async function releaseClaim() {
 }
 
 cover.addEventListener("error", () => {
-  if (!currentRelease) return;
+  if (!currentRelease) {
+    return;
+  }
 
   setStatus("Image failed to load. Check the cover_url value.", "error");
 });
@@ -311,8 +512,16 @@ skipBtn.addEventListener("click", async () => {
   }
 });
 
-async function saveReview(approved, correctedAltText = "") {
-  if (!currentRelease) return;
+async function saveReview(
+  approved,
+  correctedAltText = "",
+  correctedConfidence = undefined,
+  correctedConfidenceExplanation = undefined,
+  correctedReviewTriggers = undefined
+) {
+  if (!currentRelease) {
+    return;
+  }
 
   setButtonsLoading(true);
   setStatus(approved ? "Saving approval..." : "Saving correction...");
@@ -328,7 +537,10 @@ async function saveReview(approved, correctedAltText = "") {
         body: JSON.stringify({
           reviewer: reviewerName,
           approved,
-          correctedAltText
+          correctedAltText,
+          correctedConfidence,
+          correctedConfidenceExplanation,
+          correctedReviewTriggers
         })
       }
     );
@@ -349,23 +561,33 @@ async function saveReview(approved, correctedAltText = "") {
 }
 
 approveBtn.addEventListener("click", async () => {
-  if (!currentRelease) return;
+  if (!currentRelease) {
+    return;
+  }
 
   hideDenyPanel();
   await saveReview(true);
 });
 
 denyBtn.addEventListener("click", () => {
-  if (!currentRelease) return;
+  if (!currentRelease) {
+    return;
+  }
 
   denyPanel.hidden = false;
+  denyConfidence.value = formatEditableConfidence(currentRelease.confidence);
+  denyConfidenceExplanation.value =
+    normalizeOptionalText(currentRelease.confidence_explanation) || "";
+  renderTriggerOptions(normalizeReviewTriggers(currentRelease.review_triggers));
   denyReason.focus();
   setStatus("");
   setButtonsLoading(false);
 });
 
 confirmDenyBtn.addEventListener("click", async () => {
-  if (!currentRelease) return;
+  if (!currentRelease) {
+    return;
+  }
 
   const correctedAltText = denyReason.value.trim();
 
@@ -376,10 +598,94 @@ confirmDenyBtn.addEventListener("click", async () => {
     return;
   }
 
-  await saveReview(false, correctedAltText);
+  let correctedConfidence;
+  let correctedConfidenceExplanation;
+  let correctedReviewTriggers;
+
+  try {
+    correctedConfidence = parseEditedConfidence();
+    correctedConfidenceExplanation = parseEditedConfidenceExplanation();
+    correctedReviewTriggers = parseEditedReviewTriggers();
+  } catch (err) {
+    setStatus(err.message, "error");
+    setButtonsLoading(false);
+    return;
+  }
+
+  await saveReview(
+    false,
+    correctedAltText,
+    correctedConfidence,
+    correctedConfidenceExplanation,
+    correctedReviewTriggers
+  );
+});
+
+async function addReviewTriggerDefinition() {
+  const trigger = normalizeTriggerName(newTriggerName.value);
+  const triggerDescription = normalizeOptionalText(newTriggerDescription.value);
+
+  if (!trigger) {
+    setStatus("New trigger name is required.", "error");
+    newTriggerName.focus();
+    return;
+  }
+
+  if (!triggerDescription) {
+    setStatus("New trigger description is required.", "error");
+    newTriggerDescription.focus();
+    return;
+  }
+
+  setButtonsLoading(true);
+  setStatus("Adding trigger...");
+
+  try {
+    const res = await fetch("/api/review-trigger-definitions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        trigger,
+        triggerDescription
+      })
+    });
+    const payload = await res.json();
+
+    if (!res.ok) {
+      throw new Error(payload.error || `Request failed with status ${res.status}`);
+    }
+
+    reviewTriggerDefinitions = [...reviewTriggerDefinitions, payload.definition]
+      .sort((left, right) => left.trigger.localeCompare(right.trigger));
+    const selectedTriggers = getSelectedTriggerValues();
+    selectedTriggers.push(payload.definition.trigger);
+    renderTriggerOptions(selectedTriggers);
+    newTriggerName.value = "";
+    newTriggerDescription.value = "";
+    setStatus(`Added trigger "${payload.definition.trigger}".`);
+  } catch (err) {
+    console.error(err);
+    setStatus(err.message, "error");
+  } finally {
+    setButtonsLoading(false);
+  }
+}
+
+addTriggerBtn.addEventListener("click", async () => {
+  await addReviewTriggerDefinition();
 });
 
 denyReason.addEventListener("input", () => {
+  setButtonsLoading(false);
+});
+
+denyConfidence.addEventListener("input", () => {
+  setButtonsLoading(false);
+});
+
+denyConfidenceExplanation.addEventListener("input", () => {
   setButtonsLoading(false);
 });
 
@@ -429,6 +735,13 @@ reviewerNameInput.addEventListener("keydown", (event) => {
   }
 });
 
+newTriggerName.addEventListener("keydown", (event) => {
+  if (event.key === "Enter") {
+    event.preventDefault();
+    addTriggerBtn.click();
+  }
+});
+
 setReviewerName(loadStoredReviewerName());
 resetSkippedReleaseIds();
 
@@ -441,6 +754,15 @@ if (reviewerName) {
 resetReleaseCard();
 setButtonsLoading(false);
 
-if (reviewerName) {
-  claimRelease();
-}
+(async () => {
+  try {
+    await loadReviewTriggerDefinitions();
+
+    if (reviewerName) {
+      await claimRelease();
+    }
+  } catch (err) {
+    console.error(err);
+    setStatus(err.message, "error");
+  }
+})();

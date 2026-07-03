@@ -142,7 +142,8 @@ h2 {
 }
 
 #confidenceScore,
-#reviewTriggers {
+#reviewTriggers,
+#confidenceExplanation {
   margin: 0;
   padding: 12px;
   border: 1px solid #d7dee8;
@@ -157,8 +158,17 @@ h2 {
   padding-left: 30px;
 }
 
+#confidenceExplanation {
+  min-height: 88px;
+  white-space: pre-wrap;
+}
+
 #reviewTriggers li + li {
   margin-top: 6px;
+}
+
+.fact-block-wide {
+  grid-column: 1 / -1;
 }
 
 .description-block {
@@ -207,9 +217,130 @@ h2 {
   outline: none;
 }
 
+.deny-panel input {
+  width: 100%;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  color: #172033;
+  font-size: 16px;
+  line-height: 1.45;
+  padding: 10px;
+  outline: none;
+  background: #ffffff;
+  margin-bottom: 14px;
+}
+
 .deny-panel textarea:focus {
   border-color: #2563eb;
   box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.14);
+}
+
+.deny-panel input:focus {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.14);
+}
+
+.deny-triggers {
+  min-height: 92px;
+  background: #eef4ff;
+}
+
+.trigger-editor,
+.trigger-catalog-editor {
+  margin-bottom: 16px;
+}
+
+.trigger-editor-header {
+  margin-bottom: 8px;
+}
+
+.trigger-editor-help {
+  margin: 0;
+  color: #596579;
+  font-size: 14px;
+}
+
+.trigger-options {
+  display: grid;
+  gap: 10px;
+  margin-bottom: 4px;
+}
+
+.trigger-options-empty {
+  margin: 0;
+  padding: 12px;
+  border: 1px dashed #cbd5e1;
+  border-radius: 8px;
+  background: #f8fafc;
+  color: #596579;
+}
+
+.trigger-option {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 12px;
+  align-items: start;
+  padding: 12px;
+  border: 1px solid #d7dee8;
+  border-radius: 10px;
+  background: #f8fafc;
+}
+
+.deny-panel .trigger-option {
+  display: grid;
+  margin-bottom: 0;
+  color: #172033;
+  font-size: 16px;
+  font-weight: 400;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.trigger-option input {
+  width: 18px;
+  height: 18px;
+  margin: 2px 0 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.trigger-option-copy {
+  min-width: 0;
+}
+
+.trigger-option-title,
+.trigger-name {
+  display: block;
+  color: #172033;
+  font-weight: 700;
+}
+
+.trigger-list-item {
+  list-style: disc;
+}
+
+.trigger-details {
+  margin-top: 6px;
+}
+
+.trigger-details summary {
+  cursor: pointer;
+  color: #2563eb;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.trigger-details p {
+  margin: 8px 0 0;
+  color: #596579;
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.trigger-description-input {
+  min-height: 96px;
 }
 
 .buttons {
@@ -339,6 +470,7 @@ h2 {
 
   #confidenceScore,
   #reviewTriggers,
+  #confidenceExplanation,
   #description {
     padding: 14px;
     font-size: 15px;
@@ -365,6 +497,10 @@ h2 {
     margin-top: 18px;
     padding-top: 18px;
   }
+
+  .trigger-option {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
 }
 
 @media (max-width: 480px) {
@@ -385,6 +521,7 @@ h2 {
 
   #confidenceScore,
   #reviewTriggers,
+  #confidenceExplanation,
   #description,
   .deny-panel textarea {
     font-size: 14px;

@@ -13,23 +13,23 @@ const CLAIM_EXPIRATION_SQL = `NOW() - make_interval(mins => ${CLAIM_TIMEOUT_MINU
 const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
-let releaseReviewsTableAvailable = null;
+let reviewsHistoryTableAvailable = null;
 
 app.use(express.static("public"));
 app.use(express.json());
 
-async function hasReleaseReviewsTable(client = null) {
-  if (releaseReviewsTableAvailable !== null) {
-    return releaseReviewsTableAvailable;
+async function hasReviewsHistoryTable(client = null) {
+  if (reviewsHistoryTableAvailable !== null) {
+    return reviewsHistoryTableAvailable;
   }
 
   const db = client || getPostgresPool();
   const result = await db.query(
-    "SELECT to_regclass('public.release_reviews') AS table_name"
+    "SELECT to_regclass('public.reviews_history') AS table_name"
   );
 
-  releaseReviewsTableAvailable = Boolean(result.rows[0]?.table_name);
-  return releaseReviewsTableAvailable;
+  reviewsHistoryTableAvailable = Boolean(result.rows[0]?.table_name);
+  return reviewsHistoryTableAvailable;
 }
 
 function normalizeReviewer(value) {
@@ -54,6 +54,162 @@ function requireReviewer(req, res) {
   return null;
 }
 
+function normalizeCorrectedConfidence(value) {
+  if (value === undefined) {
+    return undefined;
+  }
+
+  if (value === null || value === "") {
+    return null;
+  }
+
+  const numericValue = Number(value);
+
+  if (!Number.isFinite(numericValue) || ![0, 1].includes(numericValue)) {
+    throw new Error("correctedConfidence must be 0 or 1");
+  }
+
+  return numericValue;
+}
+
+function normalizeOptionalText(value, fieldName) {
+  if (value === undefined) {
+    return undefined;
+  }
+
+  if (value === null) {
+    return null;
+  }
+
+  if (typeof value !== "string") {
+    throw new Error(`${fieldName} must be a string`);
+  }
+
+  const normalized = value.trim();
+  return normalized === "" ? null : normalized;
+}
+
+function normalizeTriggerName(value) {
+  if (typeof value !== "string") {
+    return "";
+  }
+
+  return value.trim().replace(/\s+/g, " ").toLowerCase();
+}
+
+async function getReviewTriggerDefinitions(client) {
+  const result = await client.query(
+    `
+      SELECT trigger, trigger_description
+      FROM review_trigger_definitions
+      ORDER BY trigger
+    `
+  );
+
+  return result.rows;
+}
+
+function normalizeCorrectedReviewTriggers(value, allowedTriggers) {
+  if (value === undefined) {
+    return undefined;
+  }
+
+  if (value === null) {
+    return null;
+  }
+
+  if (!Array.isArray(value)) {
+    throw new Error("correctedReviewTriggers must be an array of strings");
+  }
+
+  const normalized = [];
+  const seen = new Set();
+
+  for (const item of value) {
+    const trigger = normalizeTriggerName(item);
+
+    if (!trigger || seen.has(trigger)) {
+      continue;
+    }
+
+    if (!allowedTriggers.has(trigger)) {
+      throw new Error(`Unknown review trigger: ${trigger}`);
+    }
+
+    seen.add(trigger);
+    normalized.push(trigger);
+  }
+
+  return normalized.length > 0 ? normalized : null;
+}
+
+function normalizeTriggerDefinitionInput(trigger, triggerDescription) {
+  const normalizedTrigger = normalizeTriggerName(trigger);
+
+  if (!normalizedTrigger) {
+    throw new Error("trigger is required");
+  }
+
+  const normalizedDescription = normalizeOptionalText(
+    triggerDescription,
+    "triggerDescription"
+  );
+
+  if (!normalizedDescription) {
+    throw new Error("triggerDescription is required");
+  }
+
+  return {
+    trigger: normalizedTrigger,
+    triggerDescription: normalizedDescription
+  };
+}
+
+function triggersEqual(left, right) {
+  const leftNormalized = Array.isArray(left)
+    ? left.map(String).filter(Boolean)
+    : [];
+  const rightNormalized = Array.isArray(right)
+    ? right.map(String).filter(Boolean)
+    : [];
+
+  if (leftNormalized.length !== rightNormalized.length) {
+    return false;
+  }
+
+  return leftNormalized.every((value, index) => value === rightNormalized[index]);
+}
+
+function buildChangedFields(modelRelease, finalRelease) {
+  const changedFields = [];
+
+  if ((modelRelease.alt_text ?? null) !== (finalRelease.alt_text ?? null)) {
+    changedFields.push("alt_text");
+  }
+
+  if ((modelRelease.confidence ?? null) !== (finalRelease.confidence ?? null)) {
+    changedFields.push("confidence");
+  }
+
+  if (
+    (modelRelease.confidence_explanation ?? null) !==
+    (finalRelease.confidence_explanation ?? null)
+  ) {
+    changedFields.push("confidence_explanation");
+  }
+
+  if (
+    !triggersEqual(
+      modelRelease.review_triggers,
+      finalRelease.review_triggers
+    )
+  ) {
+    changedFields.push("review_triggers");
+  }
+
+  return changedFields;
+}
+
 const eligibleReleaseClause = `
   r.cover_url IS NOT NULL
   AND btrim(r.cover_url) <> ''
@@ -69,6 +225,7 @@ const releaseSelectColumns = `
   r.cover_url,
   r.alt_text,
   r.confidence,
+  r.confidence_explanation,
   r.review_triggers,
   r.needs_review,
   r.approved
@@ -81,6 +238,7 @@ const releaseReturningColumns = `
   cover_url,
   alt_text,
   confidence,
+  confidence_explanation,
   review_triggers,
   needs_review,
   approved
@@ -118,6 +276,62 @@ app.get("/api/release", async (req, res) => {
   res.status(410).json({
     error: "Use POST /api/releases/claim with a reviewer name."
   });
+});
+
+app.get("/api/review-trigger-definitions", async (req, res) => {
+  try {
+    const definitions = await getReviewTriggerDefinitions(getPostgresPool());
+    res.json({ definitions });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({
+      error: "Failed to load review trigger definitions",
+      detail: err.message
+    });
+  }
+});
+
+app.post("/api/review-trigger-definitions", async (req, res) => {
+  let normalized;
+
+  try {
+    normalized = normalizeTriggerDefinitionInput(
+      req.body?.trigger,
+      req.body?.triggerDescription
+    );
+  } catch (err) {
+    return res.status(400).json({
+      error: err.message
+    });
+  }
+
+  try {
+    const result = await getPostgresPool().query(
+      `
+        INSERT INTO review_trigger_definitions (trigger, trigger_description)
+        VALUES ($1, $2)
+        ON CONFLICT (trigger) DO NOTHING
+        RETURNING trigger, trigger_description
+      `,
+      [normalized.trigger, normalized.triggerDescription]
+    );
+
+    if (!result.rows[0]) {
+      return res.status(409).json({
+        error: "Trigger already exists"
+      });
+    }
+
+    res.status(201).json({
+      definition: result.rows[0]
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({
+      error: "Failed to create review trigger definition",
+      detail: err.message
+    });
+  }
 });
 
 app.post("/api/releases/claim", async (req, res) => {
@@ -324,7 +538,13 @@ app.post("/api/release/:id/review", async (req, res) => {
     return;
   }
 
-  const { approved, correctedAltText = "" } = req.body || {};
+  const {
+    approved,
+    correctedAltText = "",
+    correctedConfidence,
+    correctedConfidenceExplanation,
+    correctedReviewTriggers
+  } = req.body || {};
 
   if (!UUID_PATTERN.test(id)) {
     return res.status(400).json({
@@ -341,6 +561,33 @@ app.post("/api/release/:id/review", async (req, res) => {
   const correction =
     typeof correctedAltText === "string" ? correctedAltText.trim() : "";
 
+  let normalizedConfidence;
+  let normalizedConfidenceExplanation;
+  let normalizedReviewTriggers;
+
+  try {
+    const triggerDefinitions = await getReviewTriggerDefinitions(
+      getPostgresPool()
+    );
+    const allowedTriggers = new Set(
+      triggerDefinitions.map((definition) => definition.trigger)
+    );
+
+    normalizedConfidence = normalizeCorrectedConfidence(correctedConfidence);
+    normalizedConfidenceExplanation = normalizeOptionalText(
+      correctedConfidenceExplanation,
+      "correctedConfidenceExplanation"
+    );
+    normalizedReviewTriggers = normalizeCorrectedReviewTriggers(
+      correctedReviewTriggers,
+      allowedTriggers
+    );
+  } catch (err) {
+    return res.status(400).json({
+      error: err.message
+    });
+  }
+
   if (!approved && correction === "") {
     return res.status(400).json({
       error: "Corrected alt text is required when denying an AI description"
@@ -354,10 +601,15 @@ app.post("/api/release/:id/review", async (req, res) => {
     client = await pool.connect();
     await client.query("BEGIN");
 
-    const releaseReviewsAvailable = await hasReleaseReviewsTable(client);
+    const reviewsHistoryAvailable = await hasReviewsHistoryTable(client);
     const releaseRow = await client.query(
       `
-        SELECT approved
+        SELECT
+          approved,
+          alt_text,
+          confidence,
+          confidence_explanation,
+          review_triggers
         FROM releases
         WHERE id = $1::uuid
         FOR UPDATE
@@ -406,30 +658,87 @@ app.post("/api/release/:id/review", async (req, res) => {
           alt_text = CASE
             WHEN $2 THEN alt_text
             ELSE $3
+          END,
+          confidence = CASE
+            WHEN $2 THEN confidence
+            ELSE $4
+          END,
+          confidence_explanation = CASE
+            WHEN $2 THEN confidence_explanation
+            ELSE $5
+          END,
+          review_triggers = CASE
+            WHEN $2 THEN review_triggers
+            ELSE $6::jsonb
           END
         WHERE id = $1::uuid
         RETURNING
           ${releaseReturningColumns}
       `,
-      [id, approved, correction]
+      [
+        id,
+        approved,
+        correction,
+        normalizedConfidence,
+        normalizedConfidenceExplanation,
+        normalizedReviewTriggers === undefined
+          ? null
+          : JSON.stringify(normalizedReviewTriggers)
+      ]
     );
 
     const release = result.rows[0];
 
-    if (releaseReviewsAvailable) {
+    if (reviewsHistoryAvailable) {
+      const modelRelease = releaseRow.rows[0];
+      const finalRelease = release;
+      const decision = approved ? "confirm" : "deny";
+      const changedFields = buildChangedFields(modelRelease, finalRelease);
+
       await client.query(
         `
-          INSERT INTO release_reviews (
+          INSERT INTO reviews_history (
             release_id,
-            reviewed,
-            approved,
-            notes,
-            reviewed_by,
-            reviewed_at
+            reviewed_at,
+            decision,
+            model_alt_text,
+            model_confidence,
+            model_confidence_explanation,
+            model_review_triggers,
+            final_alt_text,
+            final_confidence,
+            final_confidence_explanation,
+            final_review_triggers,
+            changed_fields
           )
-          VALUES ($1::uuid, true, true, NULLIF($2, ''), $3, NOW())
+          VALUES (
+            $1::uuid,
+            NOW(),
+            $2,
+            $3,
+            $4,
+            $5,
+            $6::jsonb,
+            $7,
+            $8,
+            $9,
+            $10::jsonb,
+            $11::text[]
+          )
         `,
-        [id, correction, reviewer]
+        [
+          id,
+          decision,
+          modelRelease.alt_text ?? null,
+          modelRelease.confidence ?? null,
+          modelRelease.confidence_explanation ?? null,
+          JSON.stringify(modelRelease.review_triggers ?? null),
+          finalRelease.alt_text ?? null,
+          finalRelease.confidence ?? null,
+          finalRelease.confidence_explanation ?? null,
+          JSON.stringify(finalRelease.review_triggers ?? null),
+          changedFields
+        ]
       );
     }
 
@@ -447,7 +756,7 @@ app.post("/api/release/:id/review", async (req, res) => {
       release,
       reviewer,
       reviewSaved: true,
-      reviewHistorySaved: releaseReviewsAvailable
+      reviewHistorySaved: reviewsHistoryAvailable
     });
   } catch (err) {
     if (client) {

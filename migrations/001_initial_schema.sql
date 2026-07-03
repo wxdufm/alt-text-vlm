@@ -24,16 +24,31 @@ CREATE TABLE release_ids (
     created_at      TIMESTAMP   NOT NULL DEFAULT NOW()
 );
 
-CREATE TABLE release_reviews (
+CREATE TABLE reviews_history (
     id              SERIAL      PRIMARY KEY,
     release_id      UUID        NOT NULL REFERENCES releases(id),
-    reviewed        BOOLEAN     NOT NULL DEFAULT false,
-    approved        BOOLEAN     NOT NULL DEFAULT false,
-    notes           TEXT,
-    reviewed_by     TEXT,
-    reviewed_at     TIMESTAMP,
-    CONSTRAINT approved_requires_reviewed
-        CHECK (approved = false OR reviewed = true)
+    reviewed_at     TIMESTAMP   NOT NULL DEFAULT NOW(),
+    decision        TEXT        NOT NULL,
+    model_alt_text  TEXT,
+    model_confidence DOUBLE PRECISION,
+    model_confidence_explanation TEXT,
+    model_review_triggers JSONB,
+    final_alt_text  TEXT,
+    final_confidence DOUBLE PRECISION,
+    final_confidence_explanation TEXT,
+    final_review_triggers JSONB,
+    changed_fields  TEXT[]      NOT NULL DEFAULT ARRAY[]::TEXT[],
+    CONSTRAINT reviews_history_decision_valid
+        CHECK (decision IN ('confirm', 'deny')),
+    CONSTRAINT reviews_history_changed_fields_valid
+        CHECK (
+            changed_fields <@ ARRAY[
+                'alt_text',
+                'confidence',
+                'confidence_explanation',
+                'review_triggers'
+            ]::TEXT[]
+        )
 );
 
 CREATE OR REPLACE FUNCTION update_updated_at()
@@ -50,4 +65,4 @@ CREATE TRIGGER releases_updated_at
     EXECUTE FUNCTION update_updated_at();
 
 CREATE INDEX ON release_ids (release_id);
-CREATE INDEX ON release_reviews (release_id);
+CREATE INDEX ON reviews_history (release_id);
