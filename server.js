@@ -9,6 +9,7 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const HOST = process.env.HOST || "0.0.0.0";
 const CLAIM_TIMEOUT_MINUTES = 30;
+const ALT_TEXT_MAX_LENGTH = 130;
 const CLAIM_EXPIRATION_SQL = `NOW() - make_interval(mins => ${CLAIM_TIMEOUT_MINUTES})`;
 const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -87,6 +88,14 @@ function normalizeOptionalText(value, fieldName) {
 
   const normalized = value.trim();
   return normalized === "" ? null : normalized;
+}
+
+function normalizeCorrectedAltText(value) {
+  if (typeof value !== "string") {
+    return "";
+  }
+
+  return value.trim().slice(0, ALT_TEXT_MAX_LENGTH);
 }
 
 function normalizeTriggerName(value) {
@@ -272,10 +281,39 @@ async function getPendingStats(db) {
   return stats.rows[0];
 }
 
+async function getReviewCoverageStats(db) {
+  const result = await db.query(
+    `
+      SELECT
+        COUNT(*) FILTER (WHERE approved = true)::int AS "humanReviewedCount",
+        COUNT(*)::int AS "totalCoversCount"
+      FROM releases
+    `
+  );
+
+  return {
+    humanReviewedCount: result.rows[0]?.humanReviewedCount ?? 0,
+    totalCoversCount: result.rows[0]?.totalCoversCount ?? 0
+  };
+}
+
 app.get("/api/release", async (req, res) => {
   res.status(410).json({
     error: "Use POST /api/releases/claim with a reviewer name."
   });
+});
+
+app.get("/api/stats", async (req, res) => {
+  try {
+    const stats = await getReviewCoverageStats(getPostgresPool());
+    res.json(stats);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({
+      error: "Failed to load stats",
+      detail: err.message
+    });
+  }
 });
 
 app.get("/api/review-trigger-definitions", async (req, res) => {
@@ -383,6 +421,7 @@ app.post("/api/releases/claim", async (req, res) => {
       return res.json({
         reviewer,
         claimTimeoutMinutes: CLAIM_TIMEOUT_MINUTES,
+        ...(await getReviewCoverageStats(client)),
         release: existingClaim.rows[0]
       });
     }
@@ -439,6 +478,7 @@ app.post("/api/releases/claim", async (req, res) => {
     res.json({
       reviewer,
       claimTimeoutMinutes: CLAIM_TIMEOUT_MINUTES,
+      ...(await getReviewCoverageStats(client)),
       release
     });
   } catch (err) {
@@ -558,8 +598,7 @@ app.post("/api/release/:id/review", async (req, res) => {
     });
   }
 
-  const correction =
-    typeof correctedAltText === "string" ? correctedAltText.trim() : "";
+  const correction = normalizeCorrectedAltText(correctedAltText);
 
   let normalizedConfidence;
   let normalizedConfidenceExplanation;
@@ -756,7 +795,8 @@ app.post("/api/release/:id/review", async (req, res) => {
       release,
       reviewer,
       reviewSaved: true,
-      reviewHistorySaved: reviewsHistoryAvailable
+      reviewHistorySaved: reviewsHistoryAvailable,
+      ...(await getReviewCoverageStats(client))
     });
   } catch (err) {
     if (client) {

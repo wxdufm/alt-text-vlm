@@ -119,6 +119,28 @@ h2 {
   font-size: 14px;
 }
 
+.reviewer-stats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.stat-card {
+  padding: 12px;
+  border: 1px solid #d7dee8;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.stat-card p {
+  margin: 0;
+  color: #172033;
+  font-size: 24px;
+  font-weight: 700;
+  line-height: 1.1;
+}
+
 .release-meta {
   margin-bottom: 22px;
 }
@@ -186,6 +208,17 @@ h2 {
   text-transform: uppercase;
 }
 
+.field-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+}
+
+.field-header label {
+  margin-bottom: 8px;
+}
+
 #description {
   min-height: 122px;
   margin-bottom: 0;
@@ -238,6 +271,14 @@ h2 {
 .deny-panel input:focus {
   border-color: #2563eb;
   box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.14);
+}
+
+.char-counter {
+  margin: 0 0 8px;
+  color: #596579;
+  font-size: 14px;
+  text-align: right;
+  white-space: nowrap;
 }
 
 .deny-triggers {
@@ -451,6 +492,10 @@ h2 {
   .reviewer-row .button {
     width: 100%;
     flex-basis: 100%;
+  }
+
+  .reviewer-stats {
+    grid-template-columns: 1fr;
   }
 
   .review-facts {

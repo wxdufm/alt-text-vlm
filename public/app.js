@@ -2,6 +2,8 @@ let currentRelease = null;
 let reviewerName = "";
 let skippedReleaseIds = [];
 let reviewTriggerDefinitions = [];
+let reviewerCountResetTimerId = null;
+const ALT_TEXT_MAX_LENGTH = 130;
 
 const cover = document.getElementById("cover");
 const albumTitle = document.getElementById("albumTitle");
@@ -16,6 +18,7 @@ const approveBtn = document.getElementById("approveBtn");
 const denyBtn = document.getElementById("denyBtn");
 const denyPanel = document.getElementById("denyPanel");
 const denyReason = document.getElementById("denyReason");
+const denyReasonCount = document.getElementById("denyReasonCount");
 const denyConfidence = document.getElementById("denyConfidence");
 const denyConfidenceExplanation = document.getElementById(
   "denyConfidenceExplanation"
@@ -30,9 +33,12 @@ const cancelDenyBtn = document.getElementById("cancelDenyBtn");
 const reviewerNameInput = document.getElementById("reviewerName");
 const saveReviewerBtn = document.getElementById("saveReviewerBtn");
 const reviewerHelp = document.getElementById("reviewerHelp");
+const humanReviewedCount = document.getElementById("humanReviewedCount");
+const reviewerDailyCount = document.getElementById("reviewerDailyCount");
 
 const loadingDescription = "Loading generated description...";
 const reviewerStorageKey = "vlm-reviewer-name";
+const reviewCounterStoragePrefix = "vlm-review-count";
 
 function setStatus(message, type = "") {
   status.textContent = message;
@@ -69,6 +75,122 @@ function normalizeOptionalText(value) {
   return normalized === "" ? null : normalized;
 }
 
+function clampAltText(value) {
+  if (typeof value !== "string") {
+    return "";
+  }
+
+  return value.slice(0, ALT_TEXT_MAX_LENGTH);
+}
+
+function getLocalDateKey() {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function getReviewerDailyCountStorageKey(name = reviewerName) {
+  const normalizedName = normalizeReviewerName(name);
+
+  if (!normalizedName) {
+    return null;
+  }
+
+  return `${reviewCounterStoragePrefix}:${getLocalDateKey()}:${normalizedName}`;
+}
+
+function getMillisecondsUntilNextLocalMidnight() {
+  const now = new Date();
+  const nextMidnight = new Date(now);
+  nextMidnight.setHours(24, 0, 0, 0);
+  return Math.max(1000, nextMidnight.getTime() - now.getTime());
+}
+
+function readReviewerDailyCount(name = reviewerName) {
+  const storageKey = getReviewerDailyCountStorageKey(name);
+
+  if (!storageKey) {
+    return 0;
+  }
+
+  try {
+    const value = Number(localStorage.getItem(storageKey) || "0");
+    return Number.isFinite(value) && value >= 0 ? value : 0;
+  } catch (err) {
+    console.warn("Failed to read reviewer daily count", err);
+    return 0;
+  }
+}
+
+function writeReviewerDailyCount(nextCount, name = reviewerName) {
+  const storageKey = getReviewerDailyCountStorageKey(name);
+
+  if (!storageKey) {
+    return;
+  }
+
+  try {
+    localStorage.setItem(storageKey, String(Math.max(0, nextCount)));
+  } catch (err) {
+    console.warn("Failed to persist reviewer daily count", err);
+  }
+}
+
+function incrementReviewerDailyCount(name = reviewerName) {
+  const nextCount = readReviewerDailyCount(name) + 1;
+  writeReviewerDailyCount(nextCount, name);
+  renderReviewerDailyCount(name);
+}
+
+function renderReviewerDailyCount(name = reviewerName) {
+  reviewerDailyCount.textContent = String(readReviewerDailyCount(name));
+}
+
+function scheduleReviewerDailyCountReset() {
+  if (reviewerCountResetTimerId !== null) {
+    clearTimeout(reviewerCountResetTimerId);
+  }
+
+  reviewerCountResetTimerId = window.setTimeout(() => {
+    renderReviewerDailyCount();
+    scheduleReviewerDailyCountReset();
+  }, getMillisecondsUntilNextLocalMidnight());
+}
+
+function renderHumanReviewedCount(approvedCount, totalCount) {
+  if (
+    approvedCount === null ||
+    approvedCount === undefined ||
+    approvedCount === "" ||
+    totalCount === null ||
+    totalCount === undefined ||
+    totalCount === ""
+  ) {
+    humanReviewedCount.textContent = "0";
+    return;
+  }
+
+  const approvedNumericValue = Number(approvedCount);
+  const totalNumericValue = Number(totalCount);
+
+  humanReviewedCount.textContent =
+    Number.isFinite(approvedNumericValue) && Number.isFinite(totalNumericValue)
+      ? `${approvedNumericValue} / ${totalNumericValue}`
+      : "0 / 0";
+}
+
+function syncDenyReasonField() {
+  const clampedValue = clampAltText(denyReason.value);
+
+  if (denyReason.value !== clampedValue) {
+    denyReason.value = clampedValue;
+  }
+
+  denyReasonCount.textContent = `${denyReason.value.length} / ${ALT_TEXT_MAX_LENGTH}`;
+}
+
 function setReviewerHelp(message) {
   reviewerHelp.textContent = message;
 }
@@ -76,6 +198,7 @@ function setReviewerHelp(message) {
 function setReviewerName(nextReviewerName) {
   reviewerName = normalizeReviewerName(nextReviewerName);
   reviewerNameInput.value = reviewerName;
+  renderReviewerDailyCount(reviewerName);
 
   try {
     if (reviewerName) {
@@ -143,6 +266,7 @@ function createListPlaceholder(message) {
 function hideDenyPanel() {
   denyPanel.hidden = true;
   denyReason.value = "";
+  syncDenyReasonField();
   denyConfidence.value = "";
   denyConfidenceExplanation.value = "";
   newTriggerName.value = "";
@@ -372,6 +496,17 @@ async function loadReviewTriggerDefinitions() {
     : [];
 }
 
+async function loadAppStats() {
+  const res = await fetch("/api/stats");
+  const payload = await res.json();
+
+  if (!res.ok) {
+    throw new Error(payload.error || `Request failed with status ${res.status}`);
+  }
+
+  renderHumanReviewedCount(payload.humanReviewedCount, payload.totalCoversCount);
+}
+
 async function claimRelease(options = {}) {
   if (!reviewerName) {
     setStatus("Reviewer name is required before loading albums.", "error");
@@ -415,6 +550,16 @@ async function claimRelease(options = {}) {
     }
 
     const release = payload.release;
+
+    if (
+      payload.humanReviewedCount !== undefined &&
+      payload.totalCoversCount !== undefined
+    ) {
+      renderHumanReviewedCount(
+        payload.humanReviewedCount,
+        payload.totalCoversCount
+      );
+    }
 
     if (!release?.cover_url) {
       throw new Error("API response did not include cover_url.");
@@ -550,6 +695,18 @@ async function saveReview(
       throw new Error(payload.error || `Request failed with status ${res.status}`);
     }
 
+    incrementReviewerDailyCount(reviewerName);
+
+    if (
+      payload.humanReviewedCount !== undefined &&
+      payload.totalCoversCount !== undefined
+    ) {
+      renderHumanReviewedCount(
+        payload.humanReviewedCount,
+        payload.totalCoversCount
+      );
+    }
+
     hideDenyPanel();
     await claimRelease();
   } catch (err) {
@@ -575,6 +732,7 @@ denyBtn.addEventListener("click", () => {
   }
 
   denyPanel.hidden = false;
+  syncDenyReasonField();
   denyConfidence.value = formatEditableConfidence(currentRelease.confidence);
   denyConfidenceExplanation.value =
     normalizeOptionalText(currentRelease.confidence_explanation) || "";
@@ -678,6 +836,7 @@ addTriggerBtn.addEventListener("click", async () => {
 });
 
 denyReason.addEventListener("input", () => {
+  syncDenyReasonField();
   setButtonsLoading(false);
 });
 
@@ -752,10 +911,15 @@ if (reviewerName) {
 }
 
 resetReleaseCard();
+renderReviewerDailyCount();
+renderHumanReviewedCount(0, 0);
+syncDenyReasonField();
+scheduleReviewerDailyCountReset();
 setButtonsLoading(false);
 
 (async () => {
   try {
+    await loadAppStats();
     await loadReviewTriggerDefinitions();
 
     if (reviewerName) {
