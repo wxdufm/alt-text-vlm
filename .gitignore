@@ -5,3 +5,5 @@ models/
 .cache/
 /sqldocker/
 .env
+releases_dump.sql
+/node_modules
