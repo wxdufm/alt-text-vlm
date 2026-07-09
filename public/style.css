@@ -80,6 +80,67 @@ h2 {
   padding: 28px;
 }
 
+.reviewer-panel {
+  margin-bottom: 22px;
+  padding: 16px;
+  border: 1px solid #d7dee8;
+  border-radius: 8px;
+  background: #f8fafc;
+}
+
+.reviewer-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+
+.reviewer-row input {
+  flex: 1 1 220px;
+  min-width: 0;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  color: #172033;
+  font-size: 16px;
+  line-height: 1.45;
+  padding: 10px 12px;
+  outline: none;
+  background: #ffffff;
+}
+
+.reviewer-row input:focus {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.14);
+}
+
+.reviewer-help {
+  margin: 10px 0 0;
+  color: #596579;
+  font-size: 14px;
+}
+
+.reviewer-stats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.stat-card {
+  padding: 12px;
+  border: 1px solid #d7dee8;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.stat-card p {
+  margin: 0;
+  color: #172033;
+  font-size: 24px;
+  font-weight: 700;
+  line-height: 1.1;
+}
+
 .release-meta {
   margin-bottom: 22px;
 }
@@ -89,6 +150,47 @@ h2 {
   color: #596579;
   font-size: 18px;
   line-height: 1.35;
+}
+
+.review-facts {
+  display: grid;
+  grid-template-columns: minmax(0, 160px) minmax(0, 1fr);
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.fact-block {
+  min-width: 0;
+}
+
+#confidenceScore,
+#reviewTriggers,
+#confidenceExplanation {
+  margin: 0;
+  padding: 12px;
+  border: 1px solid #d7dee8;
+  border-radius: 8px;
+  background: #f8fafc;
+  color: #263247;
+  font-size: 15px;
+  line-height: 1.45;
+}
+
+#reviewTriggers {
+  padding-left: 30px;
+}
+
+#confidenceExplanation {
+  min-height: 88px;
+  white-space: pre-wrap;
+}
+
+#reviewTriggers li + li {
+  margin-top: 6px;
+}
+
+.fact-block-wide {
+  grid-column: 1 / -1;
 }
 
 .description-block {
@@ -104,6 +206,17 @@ h2 {
   font-weight: 700;
   letter-spacing: 0;
   text-transform: uppercase;
+}
+
+.field-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+}
+
+.field-header label {
+  margin-bottom: 8px;
 }
 
 #description {
@@ -137,9 +250,138 @@ h2 {
   outline: none;
 }
 
+.deny-panel input {
+  width: 100%;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  color: #172033;
+  font-size: 16px;
+  line-height: 1.45;
+  padding: 10px;
+  outline: none;
+  background: #ffffff;
+  margin-bottom: 14px;
+}
+
 .deny-panel textarea:focus {
   border-color: #2563eb;
   box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.14);
+}
+
+.deny-panel input:focus {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.14);
+}
+
+.char-counter {
+  margin: 0 0 8px;
+  color: #596579;
+  font-size: 14px;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.deny-triggers {
+  min-height: 92px;
+  background: #eef4ff;
+}
+
+.trigger-editor,
+.trigger-catalog-editor {
+  margin-bottom: 16px;
+}
+
+.trigger-editor-header {
+  margin-bottom: 8px;
+}
+
+.trigger-editor-help {
+  margin: 0;
+  color: #596579;
+  font-size: 14px;
+}
+
+.trigger-options {
+  display: grid;
+  gap: 10px;
+  margin-bottom: 4px;
+}
+
+.trigger-options-empty {
+  margin: 0;
+  padding: 12px;
+  border: 1px dashed #cbd5e1;
+  border-radius: 8px;
+  background: #f8fafc;
+  color: #596579;
+}
+
+.trigger-option {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 12px;
+  align-items: start;
+  padding: 12px;
+  border: 1px solid #d7dee8;
+  border-radius: 10px;
+  background: #f8fafc;
+}
+
+.deny-panel .trigger-option {
+  display: grid;
+  margin-bottom: 0;
+  color: #172033;
+  font-size: 16px;
+  font-weight: 400;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.trigger-option input {
+  width: 18px;
+  height: 18px;
+  margin: 2px 0 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.trigger-option-copy {
+  min-width: 0;
+}
+
+.trigger-option-title,
+.trigger-name {
+  display: block;
+  color: #172033;
+  font-weight: 700;
+}
+
+.trigger-list-item {
+  list-style: disc;
+}
+
+.trigger-details {
+  margin-top: 6px;
+}
+
+.trigger-details summary {
+  cursor: pointer;
+  color: #2563eb;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.trigger-details p {
+  margin: 8px 0 0;
+  color: #596579;
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.trigger-description-input {
+  min-height: 96px;
 }
 
 .buttons {
@@ -206,23 +448,127 @@ h2 {
 
 @media (max-width: 780px) {
   .app-shell {
-    width: min(100% - 24px, 560px);
-    padding: 24px 0;
+    width: min(100% - 20px, 560px);
+    padding: 18px 0 28px;
+  }
+
+  .app-header {
+    margin-bottom: 18px;
   }
 
   .review-layout {
     grid-template-columns: 1fr;
+    gap: 18px;
   }
 
   h1 {
-    font-size: 28px;
+    font-size: 27px;
+  }
+
+  h2 {
+    font-size: 22px;
+  }
+
+  .eyebrow {
+    font-size: 12px;
+    margin-bottom: 6px;
+  }
+
+  .cover-frame {
+    padding: 10px;
   }
 
   .panel {
-    padding: 22px;
+    padding: 18px;
+    border-radius: 14px;
+  }
+
+  .reviewer-panel {
+    margin-bottom: 18px;
+    padding: 14px;
+  }
+
+  .reviewer-row input,
+  .reviewer-row .button {
+    width: 100%;
+    flex-basis: 100%;
+  }
+
+  .reviewer-stats {
+    grid-template-columns: 1fr;
+  }
+
+  .review-facts {
+    grid-template-columns: 1fr;
+    gap: 12px;
   }
 
   .button {
-    flex: 1 1 120px;
+    flex: 1 1 100%;
+    width: 100%;
+    min-height: 48px;
+  }
+
+  #artistName {
+    font-size: 16px;
+  }
+
+  #confidenceScore,
+  #reviewTriggers,
+  #confidenceExplanation,
+  #description {
+    padding: 14px;
+    font-size: 15px;
+  }
+
+  #description {
+    min-height: 96px;
+    line-height: 1.5;
+  }
+
+  .buttons {
+    position: sticky;
+    bottom: 10px;
+    z-index: 5;
+    padding: 10px;
+    border: 1px solid rgba(215, 222, 232, 0.95);
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.94);
+    box-shadow: 0 12px 26px rgba(23, 32, 51, 0.12);
+    backdrop-filter: blur(8px);
+  }
+
+  .deny-panel {
+    margin-top: 18px;
+    padding-top: 18px;
+  }
+
+  .trigger-option {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 480px) {
+  .app-shell {
+    width: calc(100% - 16px);
+    padding-top: 14px;
+  }
+
+  h1 {
+    font-size: 24px;
+  }
+
+  .panel,
+  .reviewer-panel {
+    padding-left: 14px;
+    padding-right: 14px;
+  }
+
+  #confidenceScore,
+  #reviewTriggers,
+  #confidenceExplanation,
+  #description,
+  .deny-panel textarea {
+    font-size: 14px;
   }
 }

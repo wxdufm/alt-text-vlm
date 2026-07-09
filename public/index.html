@@ -2,6 +2,7 @@
 <html>
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Album Cover Review</title>
   <link rel="stylesheet" href="style.css">
 </head>
@@ -21,9 +22,59 @@
 
       <div class="panel">
 
+        <div class="reviewer-panel">
+          <label class="section-label" for="reviewerName">Reviewer name</label>
+          <div class="reviewer-row">
+            <input
+              id="reviewerName"
+              type="text"
+              maxlength="120"
+              autocomplete="name"
+              placeholder="Enter the name you want saved with your reviews"
+            >
+            <button id="saveReviewerBtn" class="button button-next" type="button">
+              Save reviewer
+            </button>
+          </div>
+          <p id="reviewerHelp" class="reviewer-help">
+            Enter your reviewer name before loading albums.
+          </p>
+
+          <div class="reviewer-stats">
+            <div class="stat-card">
+              <span class="section-label">Total Covers Reviewed</span>
+              <p id="humanReviewedCount">Loading...</p>
+            </div>
+
+            <div class="stat-card">
+              <span class="section-label">Your reviews today</span>
+              <p id="reviewerDailyCount">0</p>
+            </div>
+          </div>
+        </div>
+
         <div class="release-meta">
-          <h2 id="albumTitle">Album: Loading...</h2>
-          <p id="artistName">By: Loading...</p>
+          <h2 id="albumTitle">Album: Waiting for reviewer</h2>
+          <p id="artistName">By: Save your reviewer name to start</p>
+        </div>
+
+        <div class="review-facts">
+          <div class="fact-block">
+            <span class="section-label">Confidence score</span>
+            <p id="confidenceScore">Loading...</p>
+          </div>
+
+          <div class="fact-block">
+            <span class="section-label">Review triggers</span>
+            <ul id="reviewTriggers">
+              <li>Loading...</li>
+            </ul>
+          </div>
+
+          <div class="fact-block fact-block-wide">
+            <span class="section-label">Confidence explanation</span>
+            <p id="confidenceExplanation">Loading...</p>
+          </div>
         </div>
 
         <div class="description-block">
@@ -48,15 +99,78 @@
         </div>
 
         <div id="denyPanel" class="deny-panel" hidden>
-          <label for="denyReason">Denial notes</label>
+          <div class="field-header">
+            <label for="denyReason">Corrected alt text</label>
+            <p id="denyReasonCount" class="char-counter">0 / 130</p>
+          </div>
           <textarea
             id="denyReason"
-            placeholder="Optional: Explain why you rejected this description, Or give your ideal description for the album cover"
+            required
+            maxlength="130"
+            placeholder="Write the corrected alt text that should replace the AI description"
+          ></textarea>
+
+          <label for="denyConfidence">Updated confidence score</label>
+          <input
+            id="denyConfidence"
+            type="number"
+            inputmode="decimal"
+            min="0"
+            max="1"
+            step="1"
+            placeholder="0 or 1"
+          >
+
+          <label for="denyConfidenceExplanation">Updated confidence explanation</label>
+          <textarea
+            id="denyConfidenceExplanation"
+            placeholder="Explain why the confidence should change, or leave blank if no explanation is needed"
+          ></textarea>
+
+          <div class="trigger-editor">
+            <div class="trigger-editor-header">
+              <label>Updated review triggers</label>
+              <p class="trigger-editor-help">
+                Check the triggers that apply. Open "What this means" for details.
+              </p>
+            </div>
+
+            <div id="denyTriggerOptions" class="trigger-options">
+              <p class="trigger-options-empty">Loading triggers...</p>
+            </div>
+          </div>
+
+          <div class="trigger-catalog-editor">
+            <label for="newTriggerName">Add a new review trigger</label>
+            <input
+              id="newTriggerName"
+              type="text"
+              placeholder="lowercase trigger name"
+            >
+
+            <label for="newTriggerDescription">New trigger description</label>
+            <textarea
+              id="newTriggerDescription"
+              class="trigger-description-input"
+              placeholder="Explain exactly what this trigger means"
+            ></textarea>
+
+            <button id="addTriggerBtn" class="button button-next" type="button">
+              Add trigger
+            </button>
+          </div>
+
+          <label for="denyTriggers">Selected review triggers</label>
+          <textarea
+            id="denyTriggers"
+            class="deny-triggers"
+            placeholder="Selected triggers will appear here automatically"
+            readonly
           ></textarea>
 
           <div class="deny-actions">
             <button id="confirmDenyBtn" class="button button-deny">
-              Confirm
+              Save correction
             </button>
 
             <button id="cancelDenyBtn" class="button button-cancel">

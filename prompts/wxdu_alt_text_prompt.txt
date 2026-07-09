@@ -8,16 +8,23 @@ Album title: {{title}}
 ## BELOW IS EVERYTHING FROM THE STYLE GUIDE. YOU MUST FOLLOW THIS DEFINED CRITERIA EXACTLY ##
 
 Alt text guidelines
+
 Basics
 The purpose of the alt text is to provide an equivalent textual alternative for the album artwork to users who cannot see it, in accordance with WCAG 2.2 Success Criterion 1.1.1 (Non-text Content).
-The alt text should be concise. As a project guideline, descriptions should generally not exceed 25 words or 3 sentences, unless additional detail is necessary to preserve important visual information. (Note: WCAG does not prescribe a maximum length; this is a project-specific guideline.)
-The first sentence should describe the primary visual subject or composition of the cover.
+The alt text should be concise. Descriptions should not exceed 130 characters.
+Start by describing the central focus of the image. Then describe other needed elements.
 Additional sentences may describe typography, color palette, artistic style, or other visually significant elements.
 The description should be understandable without requiring the listener to see the image.
-The purpose of the description is not to enumerate every visible detail, but to provide a blind or low-vision user with an understanding of the artwork that is functionally equivalent to what a sighted user would reasonably perceive when viewing the cover in the context of a musical release. The level of detail should be sufficient to communicate the artwork's primary visual content, composition, and aesthetic character without becoming exhaustive. 
+Do not start the description with “album cover” or similar sentences. Do not include the text “album cover” in the description unless absolutely necessary to describe the image.
+The purpose of the description is not to enumerate every visible detail, but to provide a blind or low-vision user with an understanding of the artwork that is functionally equivalent to what a sighted user would reasonably perceive when viewing the cover in the context of a musical release. The level of detail should be sufficient to communicate the artwork's primary visual content, composition, and aesthetic character without becoming exhaustive.
+
+What determines the central focus:
+Text won't usually be the central focus unless they occupy a large part of the image or a part of the central design.
+The central focus includes elements that occupy a large part of the image. If those elements are usual elements they should be described simply and concisely (for example, just mention what it is, the shape, the color, etc.). Describe other smaller unusual elements, environment / background of the image, text if useful to the general understanding of the image etc.
+The central focus can also include unusual elements, objects or shapes.
 
 Context
-The image being described is an album cover. The description should therefore be written with the assumption that the artwork is part of a musical release rather than a standalone photograph or illustration.
+The image being described is an album cover. The description provided will be used as an alt text to the album cover image. The description should therefore be written with the assumption that the artwork is part of a musical release rather than a standalone photograph or illustration.
 Potential use cases include:
 Music streaming and playback interfaces
 Album review websites
@@ -34,11 +41,25 @@ Main subject(s)
 Composition and layout
 Artistic medium (photograph, painting, collage, illustration, digital art, etc.)
 Dominant colors and color palette
-Typography and visible text when it is readable and visually significant
+Typography and visible text when it is readable and visually significant.
 Visual style (minimalist, psychedelic, collage, zine-inspired, geometric, surreal, etc.)
 Overall aesthetic impression when it is directly supported by visible visual features
 Relationships between major visual elements
+Gender of any person if confident of it
 
+What to exclude
+Do not include information that cannot reasonably be inferred from the artwork itself.
+Examples include:
+Musical genre
+Quality judgments ("beautiful", "iconic", "bad")
+Personal interpretation presented as fact
+Hidden symbolism unless visually explicit
+Artist biography
+Historical background
+Record label information
+Release date
+Information already provided elsewhere through metadata
+The model should describe what is seen, not explain what it means.
 
 Tone and register
 Descriptions should be:
@@ -66,7 +87,10 @@ artist
 album title
 This metadata is intended only to provide context during generation.
 The generated alt text should not repeat artist names, album titles, release dates, genres, or other metadata unless that information is visibly present on the artwork. This is under the presumption that this information will appear in close proximity to the album cover under any use case.
+
+
 Specific cases
+
 People
 Describe visible appearance only.
 Avoid identifying people by name unless their identity is explicitly provided and necessary for describing the artwork.
@@ -76,6 +100,10 @@ occupation
 identity
 relationships
 unless visually evident.
+
+How to describe people
+If someone's whole person is the central focus, then describe broader evident features: skin color, clothes, clothes color, etc. Don't waste characters on describing smaller details of the person unless they are unusual details not typically observed in most people.
+If someone's face is the central focus of the image then describe the face's most prominent features (such as skin color, facial expression if visually evident/objective). Don't waste characters on describing smaller details of their face unless they are unusual details not typically observed in most people.
 
 Abstract covers
 Describe:
@@ -90,15 +118,14 @@ Instead of:
 "Representing loneliness."
 Prefer:
 "Large black geometric forms surrounding a single white circle."
+
 Visible text & typography-only covers
-If text is readable and forms an important part of the artwork:
+If text is readable and is part of the central focus of the image as described above :
 include the visible text
 briefly describe typography
 mention placement when relevant
+If text is the album or artist name, just say that text shows the album artist name rather than rewriting the text, especially for longer texts.
 If text cannot be read confidently, state that it is partially illegible rather than guessing.
-Variants
-Descriptions should correspond only to the specific artwork being processed.
-Do not assume that alternate pressings or releases share identical artwork unless confirmed by image matching.
 
 Sensitive content
 Describe sensitive imagery factually without censorship or sensationalism.
@@ -112,24 +139,28 @@ Only describe what is visibly present.
 Avoid interpreting intent.
 
 
-Possible Contributions to Lower Confidence
-The cover contains text that the model cannot reliably read.
-The model may have misidentified a person.
-The image includes culturally specific symbols the model may not understand.
-The artwork includes hate symbols, slurs, explicit violence, nudity, or other sensitive material.
-The image quality is too poor for a confident description.
-The cover is a variant and metadata may not match the image.
-The description depends on historical, political, religious, or cultural context.
-The model’s confidence is low about the main subject.
-The alt text does not conform to WCAG 2.2 standards.
+Possible Contributions to Lower Confidence: 
+ambiguous main visual element: One or more important visual elements cannot be confidently identified or could reasonably be interpreted in multiple ways, making a precise description uncertain.
+bad image quality: The image is too low in quality (e.g., blurry, pixelated, grainy, noisy, or poorly lit) to confidently identify important visual details.
+cannot read text confidently: Visible text is partially obscured, too small, distorted, or otherwise unreadable, making it impossible to transcribe or describe with confidence.
+complex image with mixed media: The artwork combines multiple artistic media or overlapping visual elements (e.g., photography, collage, painting, illustration, typography) that make accurate description difficult.
+cultural or historical reference needed: The artwork appears to contain cultural, historical, political, or religious references that may require additional context or human expertise to describe accurately.
+highly abstract artwork: The artwork is primarily abstract or non-representational, making it difficult to identify concrete subjects beyond colors, shapes, textures, or composition.
+possible person misidentification: The image may contain one or more people, but their identity, appearance, or even whether they are people cannot be determined with confidence.
+possible symbolic interpretation: The artwork may contain symbolic or metaphorical imagery whose meaning cannot be described confidently from visible content alone.
+sensitive or indecent content: The artwork contains or may contain sensitive content such as nudity, violence, self-harm, hate symbols, or other imagery that requires careful human review.
+unclear visual focus: The artwork contains multiple competing visual elements, making it difficult to determine which elements or features should be prioritized in the description.
 
 
 After the description, rate your confidence as 0 or 1:
 - 1 = the main subject(s) are clearly identifiable, image quality is sufficient, and you did not need to guess at unclear elements.
 - 0 = any of the above is not true.
 If your confidence is 0, explain specifically what was unclear (e.g. low resolution, small subjects, illegible text, ambiguous composition).
+Include the relevant review triggers in the following array that is described under "Possible Contributions to Lower Confidence" : ["ambiguous main visual element", "bad image quality", "cannot read text confidently", "complex image with mixed media", "cultural or historical reference needed", "highly abstract artwork", "possible person misidentification", "possible symbolic interpretation", "sensitive or indecent content", "unclear visual focus"]
 
 Respond in exactly this format and nothing else:
 <description>Your description here.</description>
 <confidence-score>0 or 1</confidence-score>
 <confidence-reasoning>Your reasoning here, or "N/A" if confidence is 1.</confidence-reasoning>
+<review-triggers> An array containing the review triggers that are relevant according to your confidence reasoning. </review-triggers>
+<triggers-addition> Include an array of objects in the form of [{"trigger": "New trigger here", "trigger_description": "The description of what this new trigger means"}] if you want to add new triggers relevant to your confidence reasoning that are not in the original provided description. If there is no addition you want to make, ignore this element and don't include it in your response. </triggers-addition>

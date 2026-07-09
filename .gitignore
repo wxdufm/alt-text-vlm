@@ -6,3 +6,4 @@ models/
 /sqldocker/
 .env
 node_modules/
+releases_dump.sql
