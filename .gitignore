@@ -7,3 +7,4 @@ models/
 .env
 releases_dump.sql
 /node_modules
+/data/covers
