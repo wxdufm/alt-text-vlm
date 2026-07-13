@@ -16,6 +16,48 @@ const { Pool } = pg;
 
 const PROMPT_TEMPLATE = readFileSync('prompts/short_prompt.txt', 'utf-8');
 
+const MAIN_QUERY =     `
+    SELECT
+      id,
+      artist,
+      title,
+      cover_url,
+      alt_text,
+      confidence,
+      approved,
+      review_triggers,
+      confidence_explanation,
+      updated_at
+    FROM releases
+    WHERE approved = true
+      AND LENGTH(alt_text) < 131
+      AND cover_url IS NOT NULL
+      AND alt_text IS NOT NULL
+    ORDER BY id ASC
+    `
+
+const SECOND_QUERY = `
+  SELECT
+    r.id AS id,
+    r.artist AS artist,
+    r.title AS title,
+    r.cover_url AS cover_url,
+    r.alt_text AS alt_text,
+    r.approved AS approved,
+    COALESCE(e.final_confidence, r.confidence) AS confidence,
+    COALESCE(e.final_review_triggers, r.review_triggers) AS review_triggers,
+    COALESCE(e.final_confidence_explanation, r.confidence_explanation) AS confidence_explanation,
+    r.updated_at AS updated_at
+  FROM releases AS r
+  LEFT JOIN edited_confidence_explanation AS e ON e.release_id = r.id
+  WHERE r.approved = true
+    AND LENGTH(r.alt_text) < 131
+    AND r.cover_url IS NOT NULL
+    AND r.alt_text IS NOT NULL
+  ORDER BY r.id ASC
+`
+
+
 const TOTAL = 524;
 const TRAIN_COUNT = 444;
 const VALID_COUNT = 80;
@@ -196,27 +238,7 @@ async function main() {
   });
 
   // Pull only the validated rows that belong to the reviewed training set.
-  const result = await pool.query(
-    `
-    SELECT
-      id,
-      artist,
-      title,
-      cover_url,
-      alt_text,
-      confidence,
-      approved,
-      review_triggers,
-      confidence_explanation,
-      updated_at
-    FROM releases
-    WHERE approved = true
-      AND LENGTH(alt_text) < 131
-      AND cover_url IS NOT NULL
-      AND alt_text IS NOT NULL
-    ORDER BY id ASC
-    `
-  );
+  const result = await pool.query(SECOND_QUERY);
 
   await pool.end();
 
