@@ -4,6 +4,7 @@ Manually run the fine-tuned model on one image from data/valid.jsonl.
 Usage:
     python scripts/test_single.py --index 0
     python scripts/test_single.py --id d1c85f21-9488-4721-822b-c437610ee895
+    python scripts/test_single.py --index 0 --adapter-path adapters/third-trial/checkpoint_700
 """
 
 import argparse
@@ -12,8 +13,8 @@ import json
 import mlx_vlm
 
 MODEL_PATH = "mlx-community/Qwen3-VL-8B-Instruct-4bit"
-ADAPTER_PATH = "adapters/"
-DATASET_PATH = "data/test/train_test.jsonl"
+ADAPTER_PATH = "adapters/third-trial"
+DATASET_PATH = "data/valid.jsonl"
 
 
 def load_row(index=None, row_id=None):
@@ -29,6 +30,8 @@ def main():
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument("--index", type=int)
     group.add_argument("--id", type=str)
+    parser.add_argument("--model-path", default=MODEL_PATH)
+    parser.add_argument("--adapter-path", default=ADAPTER_PATH)
     parser.add_argument("--max-tokens", type=int, default=256)
     parser.add_argument("--repetition-penalty", type=float, default=1.3)
     parser.add_argument("--repetition-context-size", type=int, default=20)
@@ -41,7 +44,7 @@ def main():
         (m["content"] for m in row["messages"] if m["role"] == "assistant"), None
     )
 
-    model, processor = mlx_vlm.load(MODEL_PATH, adapter_path=ADAPTER_PATH)
+    model, processor = mlx_vlm.load(args.model_path, adapter_path=args.adapter_path)
 
     templated_prompt = mlx_vlm.apply_chat_template(
         processor, model.config, user_prompt, num_images=1

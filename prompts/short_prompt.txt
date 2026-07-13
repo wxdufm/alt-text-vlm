@@ -1,0 +1,3 @@
+Generate accessibility alt text for this album cover.
+Artist: {{artist}}
+Album title: {{title}}

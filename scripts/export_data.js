@@ -14,13 +14,12 @@ const { Pool } = pg;
 // Config
 // ----------------------------------------
 
-const PROMPT_TEMPLATE = readFileSync('prompts/wxdu_alt_text_prompt.txt', 'utf-8');
+const PROMPT_TEMPLATE = readFileSync('prompts/short_prompt.txt', 'utf-8');
 
-const TRAIN_COUNT = 450;
-const VALID_COUNT = 100;
+const TOTAL = 524;
+const TRAIN_COUNT = 444;
+const VALID_COUNT = 80;
 const TRAIN_TEST_COUNT = 100;
-
-const UPDATED_AFTER = '2026-07-07 10:58:03.0115606';
 
 const DATA_DIR = 'data';
 const COVERS_DIR = 'data/covers';
@@ -212,12 +211,11 @@ async function main() {
       updated_at
     FROM releases
     WHERE approved = true
-      AND updated_at > $1
+      AND LENGTH(alt_text) < 131
       AND cover_url IS NOT NULL
       AND alt_text IS NOT NULL
     ORDER BY id ASC
-    `,
-    [UPDATED_AFTER]
+    `
   );
 
   await pool.end();
@@ -226,21 +224,17 @@ async function main() {
 
   console.log(`Found ${rows.length} approved rows`);
 
-  if (rows.length < TRAIN_COUNT + VALID_COUNT) {
-    throw new Error(`Expected at least 550 rows, found ${rows.length}`);
-  }
-
-  if (rows.length !== TRAIN_COUNT + VALID_COUNT) {
-    console.warn(`Expected exactly 550 rows, found ${rows.length}. Using first 550.`);
+  if (rows.length !== TOTAL) {
+    throw new Error(`Incorrect amount of data found: ${rows.length}`);
   }
 
   // Convert database rows into training rows.
-  const selectedRows = rows.slice(0, TRAIN_COUNT + VALID_COUNT);
+  const selectedRows = rows.slice(0, TOTAL);
   const jsonlRows = selectedRows.map(buildJsonlRow);
 
   // Split into train, validation, and train-test.
   const trainRows = jsonlRows.slice(0, TRAIN_COUNT);
-  const validRows = jsonlRows.slice(TRAIN_COUNT, TRAIN_COUNT + VALID_COUNT);
+  const validRows = jsonlRows.slice(TRAIN_COUNT, TOTAL);
   const trainTestRows = trainRows.slice(0, TRAIN_TEST_COUNT);
 
   // First write all files with external cover_url values.

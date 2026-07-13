@@ -106,6 +106,13 @@ function normalizeTriggerName(value) {
   return value.trim().replace(/\s+/g, " ").toLowerCase();
 }
 
+// JSON.stringify(null) is the string "null", which a ::jsonb cast turns into
+// a JSON null value instead of a real SQL NULL. Pass null straight through
+// so pg binds an actual NULL for missing/empty triggers.
+function toJsonbParam(value) {
+  return value == null ? null : JSON.stringify(value);
+}
+
 async function getReviewTriggerDefinitions(client) {
   const result = await client.query(
     `
@@ -725,9 +732,7 @@ app.post("/api/release/:id/review", async (req, res) => {
         correction,
         normalizedConfidence,
         normalizedConfidenceExplanation,
-        normalizedReviewTriggers === undefined
-          ? null
-          : JSON.stringify(normalizedReviewTriggers)
+        toJsonbParam(normalizedReviewTriggers)
       ]
     );
 
@@ -776,11 +781,11 @@ app.post("/api/release/:id/review", async (req, res) => {
           modelRelease.alt_text ?? null,
           modelRelease.confidence ?? null,
           modelRelease.confidence_explanation ?? null,
-          JSON.stringify(modelRelease.review_triggers ?? null),
+          toJsonbParam(modelRelease.review_triggers),
           finalRelease.alt_text ?? null,
           finalRelease.confidence ?? null,
           finalRelease.confidence_explanation ?? null,
-          JSON.stringify(finalRelease.review_triggers ?? null),
+          toJsonbParam(finalRelease.review_triggers),
           changedFields
         ]
       );

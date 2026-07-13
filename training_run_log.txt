@@ -1,0 +1,228 @@
+=== RECONSTRUCTED LOG (2026-07-13) ===
+The original training_run_log.txt was accidentally truncated to 0 bytes when a
+manually-run resume command used `tee training_run_log.txt` instead of
+`tee -a training_run_log.txt`. This file is reconstructed from monitoring
+notes recorded in the Claude conversation during the run, NOT a byte-for-byte
+copy of the original. Coverage is incomplete between check-ins - every
+val-loss line below was read directly off the real log at the time and is
+accurate; train-loss lines are a partial sample, not every 10-iteration
+report. Known gaps in val-loss coverage: iterations 300, 400, 500, 1200, 1300,
+1700 were never captured. All 25 checkpoint files themselves
+(adapters/0000100_adapters.safetensors through 0002500_adapters.safetensors)
+are fully intact on disk and unaffected by this log loss - if exact numbers
+are needed for a specific checkpoint, re-running evaluation against it
+directly will give a reliable answer, unlike this reconstruction.
+
+Run config: mlx_vlm 8-bit Qwen3-VL, batch-size 1, lora-rank 32, epochs 8
+(target 3552 iterations), train-on-completions, max-seq-length 1024,
+image-resize-shape 448 448, grad-checkpoint, grad-clip 1.0, output-path
+adapters/, train-dataset data/train.jsonl, val-dataset data/valid.jsonl.
+Started ~2026-07-13 01:14.
+
+--- Reconstructed timeline ---
+Iter 1:    Val loss 3.085
+Iter 10:   Train loss 2.47240963   Peak mem 12.614 GB
+Iter 20:   Train loss 1.33533621   Peak mem 12.825 GB
+Iter 30:   Train loss 0.93842764   Peak mem 12.825 GB
+Iter 40:   Train loss 1.06850834   Peak mem 12.825 GB
+Iter 50:   Train loss 1.37892170   Peak mem 17.219 GB
+Iter 60:   Train loss 0.93371410   Peak mem 17.219 GB
+Iter 70:   Train loss 0.75862923   Peak mem 17.219 GB
+Iter 80:   Train loss 0.74939189   Peak mem 17.219 GB
+Iter 90:   Train loss 1.04446087   Peak mem 20.794 GB
+Iter 100:  Val loss 0.869   |   Train loss 0.80831394   Peak mem 20.794 GB
+Iter 110:  Train loss 1.15995274   Peak mem 26.947 GB   (memory jumped above 24GB physical RAM here)
+Iter 120:  Train loss 0.66544685
+Iter 130:  Train loss 0.82198982
+Iter 140:  Train loss 0.80668221
+Iter 150:  Train loss 0.98365936
+Iter 160:  Train loss 0.73389969
+Iter 170:  Train loss 0.87292900
+Iter 180:  Train loss 1.18726892
+Iter 190:  Train loss 0.88989115
+Iter 200:  Val loss 0.818   |   Train loss 0.91379089
+Iter 210:  Train loss 0.87879629
+Iter 220:  Train loss 0.97243299
+Iter 230:  Train loss 0.94858685
+Iter 240:  Train loss 0.80454941
+Iter 250:  Train loss 0.89906168
+Iter 260:  Train loss 0.94487772
+Iter 270:  Train loss 0.74813981
+Iter 280:  Train loss 0.73858299
+--- gap: iterations ~281-549 not captured, memory rose further to 28.660 GB somewhere in this span ---
+Iter 550:  Train loss 0.82854881   Peak mem 28.660 GB
+Iter 560:  Train loss 0.75772934
+Iter 570:  Train loss 0.67878284
+Iter 580:  Train loss 0.80335474
+Iter 590:  Train loss 0.73283300
+Iter 600:  Val loss 0.783   |   Train loss 0.62009668
+Iter 610:  Train loss 0.73134975
+Iter 620:  Train loss 0.73782077
+Iter 630:  Train loss 0.86344128
+Iter 640:  Train loss 0.85162516
+Iter 650:  Train loss 0.76410413
+Iter 660:  Train loss 0.54653234
+Iter 670:  Train loss 0.60428238
+Iter 680:  Train loss 0.63017416
+Iter 690:  Train loss 0.67700052
+Iter 700:  Val loss 0.779   |   Train loss 0.58633204   (lowest val loss observed across the whole run)
+Iter 710:  Train loss 0.58404336
+Iter 720:  Train loss 0.66893897
+Iter 730:  Train loss 0.84563618
+Iter 740:  Train loss 0.74996634
+Iter 750:  Train loss 0.68395162
+Iter 760:  Train loss 0.66534414
+Iter 770:  Train loss 0.80831852
+Iter 780:  Train loss 0.74552469
+Iter 790:  Train loss 0.63642917
+Iter 800:  Val loss 0.780   |   Train loss 0.79373193
+Iter 810:  Train loss 0.72638631
+--- gap: iterations ~811-889 not captured ---
+Iter 890:  Train loss 0.69473171
+Iter 900:  Val loss 0.788   |   Train loss 0.63988457
+Iter 910:  Train loss 0.50230088
+Iter 920:  Train loss 0.72677464
+Iter 930:  Train loss 0.52919097
+Iter 940:  Train loss 0.64515910
+Iter 950:  Train loss 0.53925061
+Iter 960:  Train loss 0.51513615
+Iter 970:  Train loss 0.68413219
+Iter 980:  Train loss 0.74162207
+Iter 990:  Train loss 0.63150601
+Iter 1000: Val loss 0.803   |   Train loss 0.57799244
+Iter 1010: Train loss 0.68498268
+Iter 1020: Train loss 0.52179103
+Iter 1030: Train loss 0.51028261
+Iter 1040: Train loss 0.60456877
+Iter 1050: Train loss 0.89473534
+Iter 1060: Train loss 0.53206253
+Iter 1070: Train loss 0.62000065
+Iter 1080: Train loss 0.65349245
+Iter 1090: Train loss 0.59672322
+Iter 1100: Val loss 0.815   |   Train loss 0.60103269
+--- gap: iterations ~1101-1349 not captured ---
+Iter 1350: Train loss 0.53403044
+Iter 1360: Train loss 0.45793128
+Iter 1370: Train loss 0.37373559
+Iter 1380: Train loss 0.35913477
+Iter 1390: Train loss 0.56077137
+Iter 1400: Val loss 0.913   |   Train loss 0.41040411
+Iter 1410: Train loss 0.44252019
+Iter 1420: Train loss 0.41940985
+Iter 1430: Train loss 0.53867254
+Iter 1440: Train loss 0.53470416
+Iter 1450: Train loss 0.46868424
+Iter 1460: Train loss 0.37207096
+Iter 1470: Train loss 0.40490751
+Iter 1480: Train loss 0.58861461
+Iter 1490: Train loss 0.46189032
+Iter 1500: Val loss 0.908   |   Train loss 0.49915657
+Iter 1510: Train loss 0.37843690
+Iter 1520: Train loss 0.37849007
+Iter 1530: Train loss 0.42166214
+Iter 1540: Train loss 0.53023791
+Iter 1550: Train loss 0.47036595
+Iter 1560: Train loss 0.43768568
+Iter 1570: Train loss 0.37701347
+Iter 1580: Train loss 0.37956936
+Iter 1590: Train loss 0.44235020
+Iter 1600: Val loss 0.892   |   Train loss 0.51413140
+Iter 1610: Train loss 0.47949071
+--- gap: iterations ~1611-1799 not captured ---
+Iter 1800: Val loss 1.117
+Iter 1810: Train loss 0.26126399
+Iter 1820: Train loss 0.20595639
+Iter 1830: Train loss 0.25753458
+Iter 1840: Train loss 0.27222712
+Iter 1850: Train loss 0.16770067
+Iter 1860: Train loss 0.22830181
+Iter 1870: Train loss 0.25751786
+Iter 1880: Train loss 0.23812821
+Iter 1890: Train loss 0.17494725
+Iter 1900: Val loss 1.099   |   Train loss 0.25846624
+Iter 1910: Train loss 0.26062083
+Iter 1920: Train loss 0.22143879
+Iter 1930: Train loss 0.22840097
+Iter 1940: Train loss 0.24169481
+Iter 1950: Train loss 0.31998219
+Iter 1960: Train loss 0.26950665
+Iter 1970: Train loss 0.27116179
+Iter 1980: Train loss 0.33036406
+Iter 1990: Train loss 0.20728104
+Iter 2000: Val loss 1.130   |   Train loss 0.19607481
+Iter 2010: Train loss 0.21131082
+Iter 2020: Train loss 0.38197718
+Iter 2030: Train loss 0.31540442
+Iter 2040: Train loss 0.43020954
+Iter 2050: Train loss 0.22020071
+Iter 2060: Train loss 0.27652168
+--- gap: iterations ~2070-2090 not captured ---
+Iter 2100: Val loss 1.075
+--- gap: iterations ~2110-2190 not captured ---
+Iter 2200: Val loss 1.098
+Iter 2210: Train loss 0.28634882
+Iter 2220: Train loss 0.31133420
+Iter 2230: Train loss 0.10330508
+Iter 2240: Train loss 0.14893332
+Iter 2250: Train loss 0.15485022
+Iter 2260: Train loss 0.12212359
+Iter 2270: Train loss 0.07146602
+Iter 2280: Train loss 0.06677761
+Iter 2290: Train loss 0.11128016
+Iter 2300: Val loss 1.295   |   Train loss 0.13797621
+Iter 2310: Train loss 0.09138577
+Iter 2320: Train loss 0.10092096
+Iter 2330: Train loss 0.09027412
+Iter 2340: Train loss 0.14388216
+Iter 2350: Train loss 0.13869430
+Iter 2360: Train loss 0.15188577
+Iter 2370: Train loss 0.12195160
+Iter 2380: Train loss 0.10067015
+Iter 2390: Train loss 0.12051253
+Iter 2400: Val loss 1.276   |   Train loss 0.18040711
+Iter 2410: Train loss 0.10658103
+Iter 2420: Train loss 0.11589260
+Iter 2430: Train loss 0.08163125
+Iter 2440: Train loss 0.13810785
+Iter 2450: Train loss 0.20142877
+Iter 2460: Train loss 0.12506477
+Iter 2470: Train loss 0.08346223
+Iter 2480: Train loss 0.09748858
+Iter 2490: Train loss 0.15781518
+Iter 2500: Val loss 1.254   |   Train loss 0.10953908   [checkpoint saved: adapters/0002500_adapters.safetensors]
+Iter 2510: Train loss 0.13822671
+Iter 2520: Train loss 0.10918927
+Iter 2530: Train loss 0.09781404
+
+--- CRASH at ~iter 2530-2540 (exact iter of failing step not captured) ---
+Traceback (most recent call last):
+  File "/Users/xdu/Documents/vlm/scripts/train_lora_with_val.py", line 166, in <module>
+    main(args)
+  File "/Users/xdu/Documents/vlm/scripts/train_lora_with_val.py", line 119, in main
+    train(...)
+  File "/Users/xdu/miniconda3/lib/python3.13/site-packages/mlx_vlm/trainer/sft_trainer.py", line 495, in train
+    lvalue, toks, grad_accum = step(...)
+  File "/Users/xdu/miniconda3/lib/python3.13/site-packages/mlx_vlm/trainer/sft_trainer.py", line 424, in step
+    lvalue, grad = loss_value_and_grad(model, batch)
+  File "/Users/xdu/miniconda3/lib/python3.13/site-packages/mlx_vlm/models/qwen3_vl/qwen3_vl.py", line 99, in get_input_embeddings
+    position_ids, rope_deltas = self.language_model.get_rope_index(...)
+  File "/Users/xdu/miniconda3/lib/python3.13/site-packages/mlx_vlm/models/qwen3_vl/language.py", line 322, in get_rope_index
+    for token, keep in zip(input_ids.tolist(), row_mask)
+RuntimeError: [METAL] Command buffer execution failed: Insufficient Memory (00000008:kIOGPUCommandBufferCallbackErrorOutOfMemory).
+
+--- RESUMED: swapped to 4-bit model, resumed from adapters/0002500_adapters.safetensors ---
+(This resume's own output was itself lost - it was running for a few minutes,
+reached at least "Iter 1: Calculating loss..." on the first val pass, before
+the log was truncated by a separately-run `tee` command without -a. The
+resumed process (PID 19325) is no longer running as of the last check.)
+
+--- Summary / interpretation ---
+Val loss minimum: 0.779 at iter 700.
+Val loss at crash point (iter 2500): 1.254 - a clear, sustained increase from
+the minimum, while train loss dropped from ~0.6 range to ~0.10 range over the
+same span. This is a real overfitting signal, not noise (confirmed across
+5+ consecutive val checkpoints from iter 1400 onward, not a single blip).
+Best-performing checkpoint by val loss is very likely near iter 600-800, not
+the later, more-trained checkpoints - worth explicitly evaluating checkpoints
+in that range (e.g. 0000600, 0000700, 0000800) with 04_generate_alt_text.py
+against data/valid.jsonl before assuming later = better.

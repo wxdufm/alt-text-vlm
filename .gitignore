@@ -6,5 +6,6 @@ models/
 /sqldocker/
 .env
 releases_dump.sql
+vlm_training_dump_*.sql
 /node_modules
 /data/covers

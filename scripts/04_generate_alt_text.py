@@ -6,6 +6,7 @@ for manual review.
 Usage:
     python scripts/04_generate_alt_text.py
     python scripts/04_generate_alt_text.py --limit 10 --output eval_results/smoke.jsonl
+    python scripts/04_generate_alt_text.py --adapter-path adapters/third-trial/checkpoint_700 --output eval_results/checkpoint_700.jsonl
 """
 
 import argparse
@@ -17,11 +18,22 @@ from pathlib import Path
 import mlx_vlm
 
 MODEL_PATH = "mlx-community/Qwen3-VL-8B-Instruct-4bit"
-ADAPTER_PATH = "adapters/"
+ADAPTER_PATH = "adapters/third-trial"
 DATASET_PATH = "data/valid.jsonl"
 MAX_DESCRIPTION_CHARS = 130
 
 TAG_RE = re.compile(r"<description>(.*?)</description>", re.DOTALL)
+
+# Full expected structure, in order: description, confidence-score,
+# confidence-reasoning, review-triggers, then an optional triggers-addition.
+STRUCTURE_RE = re.compile(
+    r"<description>(.*?)</description>\s*"
+    r"<confidence-score>(.*?)</confidence-score>\s*"
+    r"<confidence-reasoning>(.*?)</confidence-reasoning>\s*"
+    r"<review-triggers>(.*?)</review-triggers>"
+    r"(?:\s*<triggers-addition>.*?</triggers-addition>)?\s*",
+    re.DOTALL,
+)
 
 
 def load_rows(dataset_path, limit=None):
@@ -33,6 +45,25 @@ def load_rows(dataset_path, limit=None):
 def extract_description(text):
     match = TAG_RE.search(text or "")
     return match.group(1).strip() if match else None
+
+
+def is_well_formed(text):
+    if not text:
+        return False
+    match = STRUCTURE_RE.fullmatch(text.strip())
+    if not match:
+        return False
+    description, confidence_score, _reasoning, review_triggers = match.groups()
+
+    if not description.strip():
+        return False
+    if confidence_score.strip() not in ("0", "1"):
+        return False
+    try:
+        triggers = json.loads(review_triggers.strip())
+    except json.JSONDecodeError:
+        return False
+    return isinstance(triggers, list)
 
 
 def similarity(a, b):
@@ -48,7 +79,7 @@ def score_row(prediction_text, reference_text):
     return {
         "prediction_description": pred_desc,
         "reference_description": ref_desc,
-        "well_formed": pred_desc is not None,
+        "well_formed": is_well_formed(prediction_text),
         "within_char_limit": (
             len(pred_desc) <= MAX_DESCRIPTION_CHARS if pred_desc else False
         ),
