@@ -438,7 +438,12 @@ app.post("/api/releases/claim", async (req, res) => {
               c.release_id IS NULL
               OR c.claimed_at < ${CLAIM_EXPIRATION_SQL}
             )
-          ORDER BY random()
+          ORDER BY
+            CASE
+              WHEN r.confidence = 0 THEN 0
+              ELSE 1
+            END,
+            random()
           FOR UPDATE OF r SKIP LOCKED
           LIMIT 1
         ),
