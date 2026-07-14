@@ -79,6 +79,7 @@ def score_row(prediction_text, reference_text):
     return {
         "prediction_description": pred_desc,
         "reference_description": ref_desc,
+        "description_tag_exists": pred_desc is not None,
         "well_formed": is_well_formed(prediction_text),
         "within_char_limit": (
             len(pred_desc) <= MAX_DESCRIPTION_CHARS if pred_desc else False
@@ -155,6 +156,7 @@ def main():
 
             print(
                 f"[{i + 1}/{len(rows)}] {row.get('id')} "
+                f"description_tag_exists={scores['description_tag_exists']} "
                 f"well_formed={scores['well_formed']} "
                 f"within_limit={scores['within_char_limit']} "
                 f"similarity={scores['similarity']:.2f}"
@@ -162,17 +164,29 @@ def main():
 
     n = len(results)
     if n:
+        description_tag_exists = sum(r["description_tag_exists"] for r in results)
         well_formed = sum(r["well_formed"] for r in results)
         within_limit = sum(r["within_char_limit"] for r in results)
         starts_bad = sum(r["starts_with_album_cover"] for r in results)
-        avg_similarity = sum(r["similarity"] for r in results) / n
+        similarity_scores = [
+            r["similarity"] for r in results if r["description_tag_exists"]
+        ]
+        avg_similarity = (
+            sum(similarity_scores) / len(similarity_scores)
+            if similarity_scores
+            else 0.0
+        )
 
         print("\n" + "=" * 40)
         print(f"Rows scored:              {n}")
-        print(f"Well-formed <description>: {well_formed}/{n}")
+        print(f"<description> tag present: {description_tag_exists}/{n}")
+        print(f"Well-formed (full structure): {well_formed}/{n}")
         print(f"Within {MAX_DESCRIPTION_CHARS} char limit:     {within_limit}/{n}")
         print(f"Starts with 'album cover': {starts_bad}/{n}")
-        print(f"Avg text similarity:       {avg_similarity:.3f}")
+        print(
+            f"Avg text similarity (of {len(similarity_scores)} with a description): "
+            f"{avg_similarity:.3f}"
+        )
         print(f"\nFull results: {output_path}")
 
 
