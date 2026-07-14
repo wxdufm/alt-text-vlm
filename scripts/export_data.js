@@ -26,7 +26,6 @@ const MAIN_QUERY =     `
       confidence,
       approved,
       review_triggers,
-      confidence_explanation,
       updated_at
     FROM releases
     WHERE approved = true
@@ -112,7 +111,6 @@ function buildAssistantOutput(row) {
   return [
     `<description>${row.alt_text.trim()}</description>`,
     `<confidence-score>${row.confidence}</confidence-score>`,
-    `<confidence-reasoning>${confidenceReasoning}</confidence-reasoning>`,
     `<review-triggers>${normalizeReviewTriggers(row.review_triggers)}</review-triggers>`,
   ].join('\n');
 }
@@ -167,6 +165,13 @@ function getImageExtension(url, contentType) {
 // Download one image and return the local filepath.
 // If the image already exists, reuse it instead of downloading again.
 async function downloadImage(row) {
+  const urlExt = getImageExtension(row.image, null);
+  const urlFilepath = join(COVERS_DIR, `${row.id}${urlExt}`);
+
+  if (existsSync(urlFilepath)) {
+    return urlFilepath;
+  }
+
   const res = await fetch(row.image);
 
   if (!res.ok) {

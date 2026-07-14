@@ -155,11 +155,9 @@ unclear visual focus: The artwork contains multiple competing visual elements, m
 After the description, rate your confidence as 0 or 1:
 - 1 = the main subject(s) are clearly identifiable, image quality is sufficient, and you did not need to guess at unclear elements.
 - 0 = any of the above is not true.
-If your confidence is 0, explain specifically what was unclear (e.g. low resolution, small subjects, illegible text, ambiguous composition).
 Include the relevant review triggers in the following array that is described under "Possible Contributions to Lower Confidence" : ["ambiguous main visual element", "bad image quality", "cannot read text confidently", "complex image with mixed media", "cultural or historical reference needed", "highly abstract artwork", "possible person misidentification", "possible symbolic interpretation", "sensitive or indecent content", "unclear visual focus"]
 
 Respond using exactly these tags, in this order, and nothing else:
 1. description — wrap your description text in <description> and </description>.
 2. confidence-score — wrap the digit 0 or 1 in <confidence-score> and </confidence-score>.
-3. confidence-reasoning — wrap your reasoning in <confidence-reasoning> and </confidence-reasoning>, or write "N/A" if confidence is 1.
-4. review-triggers — wrap a JSON array of the relevant triggers from the list above in <review-triggers> and </review-triggers>.
+3. review-triggers — wrap a JSON array of the relevant triggers from the list above in <review-triggers> and </review-triggers>.

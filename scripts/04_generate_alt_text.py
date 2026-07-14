@@ -25,11 +25,12 @@ MAX_DESCRIPTION_CHARS = 130
 TAG_RE = re.compile(r"<description>(.*?)</description>", re.DOTALL)
 
 # Full expected structure, in order: description, confidence-score,
-# confidence-reasoning, review-triggers, then an optional triggers-addition.
+# review-triggers, then an optional triggers-addition. confidence-reasoning
+# was dropped from the trained format (5th-trial onward) after it turned out
+# to dominate the completion length and crowd out the other fields.
 STRUCTURE_RE = re.compile(
     r"<description>(.*?)</description>\s*"
     r"<confidence-score>(.*?)</confidence-score>\s*"
-    r"<confidence-reasoning>(.*?)</confidence-reasoning>\s*"
     r"<review-triggers>(.*?)</review-triggers>"
     r"(?:\s*<triggers-addition>.*?</triggers-addition>)?\s*",
     re.DOTALL,
@@ -53,7 +54,7 @@ def is_well_formed(text):
     match = STRUCTURE_RE.fullmatch(text.strip())
     if not match:
         return False
-    description, confidence_score, _reasoning, review_triggers = match.groups()
+    description, confidence_score, review_triggers = match.groups()
 
     if not description.strip():
         return False
