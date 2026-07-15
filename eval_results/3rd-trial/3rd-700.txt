@@ -1,5 +1,7 @@
 Loaded 80 rows from data/valid.jsonl
-Fetching 15 files:   0%|          | 0/15 [00:00<?, ?it/s]Fetching 15 files: 100%|██████████| 15/15 [00:00<00:00, 24995.85it/s]
+
+Fetching 15 files:   0%|          | 0/15 [00:00<?, ?it/s]
+Fetching 15 files: 100%|██████████| 15/15 [00:00<00:00, 24995.85it/s]
 [1/80] dab31fd0-f0cd-44b9-8dea-541107039b10 description_tag_exists=True well_formed=True within_limit=True similarity=0.44
 [2/80] dc05b652-2bee-4a63-96b3-a8a600922360 description_tag_exists=True well_formed=False within_limit=True similarity=0.36
 [3/80] dc599294-863c-4d50-be6a-18f81fa2494d description_tag_exists=True well_formed=False within_limit=True similarity=0.52
@@ -90,3 +92,9 @@ Starts with 'album cover': 0/80
 Avg text similarity (of 80 with a description): 0.486
 
 Full results: eval_results/3rd-700.jsonl
+
+Tag	Present	Valid content
+<description>	80/80	80/80
+<confidence-score>	79/80	78/80 (one row: 0.65, not 0/1)
+<confidence-reasoning>	34/80	—
+<review-triggers>	77/80	77/80

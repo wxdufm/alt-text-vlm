@@ -1,5 +1,3 @@
-Loaded 80 rows from data/valid.jsonl
-Fetching 15 files:   0%|          | 0/15 [00:00<?, ?it/s]Fetching 15 files: 100%|██████████| 15/15 [00:00<00:00, 18814.16it/s]
 [1/80] dab31fd0-f0cd-44b9-8dea-541107039b10 description_tag_exists=True well_formed=True within_limit=True similarity=0.43
 [2/80] dc05b652-2bee-4a63-96b3-a8a600922360 description_tag_exists=True well_formed=False within_limit=True similarity=0.37
 [3/80] dc599294-863c-4d50-be6a-18f81fa2494d description_tag_exists=True well_formed=True within_limit=True similarity=0.41
