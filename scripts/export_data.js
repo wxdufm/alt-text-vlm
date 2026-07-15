@@ -111,6 +111,7 @@ function buildAssistantOutput(row) {
   return [
     `<description>${row.alt_text.trim()}</description>`,
     `<confidence-score>${row.confidence}</confidence-score>`,
+    `<confidence-reasoning>${confidenceReasoning}</confidence-reasoning>`,
     `<review-triggers>${normalizeReviewTriggers(row.review_triggers)}</review-triggers>`,
   ].join('\n');
 }

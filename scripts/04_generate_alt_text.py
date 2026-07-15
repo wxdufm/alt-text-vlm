@@ -24,11 +24,18 @@ MAX_DESCRIPTION_CHARS = 130
 
 TAG_RE = re.compile(r"<description>(.*?)</description>", re.DOTALL)
 
-# Full expected structure, in order: description, confidence-score,
-# review-triggers, then an optional triggers-addition. confidence-reasoning
-# was dropped from the trained format (5th-trial onward) after it turned out
-# to dominate the completion length and crowd out the other fields.
-STRUCTURE_RE = re.compile(
+# The trained format has toggled between two shapes across trials (3rd/4th/7th+
+# include confidence-reasoning; 5th/6th dropped it), so well-formedness is
+# checked against both and either match counts.
+STRUCTURE_RE_WITH_REASONING = re.compile(
+    r"<description>(.*?)</description>\s*"
+    r"<confidence-score>(.*?)</confidence-score>\s*"
+    r"<confidence-reasoning>.*?</confidence-reasoning>\s*"
+    r"<review-triggers>(.*?)</review-triggers>"
+    r"(?:\s*<triggers-addition>.*?</triggers-addition>)?\s*",
+    re.DOTALL,
+)
+STRUCTURE_RE_NO_REASONING = re.compile(
     r"<description>(.*?)</description>\s*"
     r"<confidence-score>(.*?)</confidence-score>\s*"
     r"<review-triggers>(.*?)</review-triggers>"
@@ -51,7 +58,10 @@ def extract_description(text):
 def is_well_formed(text):
     if not text:
         return False
-    match = STRUCTURE_RE.fullmatch(text.strip())
+    stripped = text.strip()
+    match = STRUCTURE_RE_WITH_REASONING.fullmatch(
+        stripped
+    ) or STRUCTURE_RE_NO_REASONING.fullmatch(stripped)
     if not match:
         return False
     description, confidence_score, review_triggers = match.groups()
