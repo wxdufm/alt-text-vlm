@@ -99,7 +99,7 @@ def main():
     parser.add_argument("--dataset", default=DATASET_PATH)
     parser.add_argument("--output", default="eval_results/valid_predictions.jsonl")
     parser.add_argument("--max-tokens", type=int, default=256)
-    parser.add_argument("--repetition-penalty", type=float, default=1.3)
+    parser.add_argument("--repetition-penalty", type=float, default=1.0)
     parser.add_argument("--repetition-context-size", type=int, default=20)
     parser.add_argument("--prefill-step-size", type=int, default=8192)
     parser.add_argument("--limit", type=int, default=None)
