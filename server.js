@@ -16,7 +16,7 @@ const UUID_PATTERN =
 
 let reviewsHistoryTableAvailable = null;
 
-app.use(express.static("public"));
+app.use(express.static("public/review_website"));
 app.use(express.json());
 
 async function hasReviewsHistoryTable(client = null) {
