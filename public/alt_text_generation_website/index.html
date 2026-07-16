@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Alt Text Generation Playground</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <main class="app-shell">
+    <header class="app-header">
+      <p class="eyebrow">VLM Fine-Tuning Playground</p>
+      <h1>Alt Text Generation</h1>
+      <p class="subtitle">
+        Enter a release ID, pick a fine-tuning trial, and generate alt text with that
+        trial's best checkpoint.
+      </p>
+    </header>
+
+    <section class="controls-panel">
+      <div class="field">
+        <label class="section-label" for="releaseId">Release ID</label>
+        <input
+          id="releaseId"
+          type="text"
+          placeholder="e.g. dab31fd0-f0cd-44b9-8dea-541107039b10"
+          autocomplete="off"
+        >
+      </div>
+
+      <div class="field">
+        <label class="section-label" for="trialSelect">Trial (best checkpoint auto-selected)</label>
+        <select id="trialSelect">
+          <option value="">Loading trials...</option>
+        </select>
+      </div>
+
+      <button id="generateBtn" class="button button-primary" type="button" disabled>
+        Generate Alt Text
+      </button>
+
+      <p id="statusMessage" class="status-message"></p>
+    </section>
+
+    <section class="result-layout">
+      <div class="cover-frame">
+        <img id="cover" alt="">
+        <p id="coverPlaceholder" class="cover-placeholder">Enter a release ID to preview its cover</p>
+      </div>
+
+      <div class="panel">
+        <div class="release-meta">
+          <h2 id="albumTitle">—</h2>
+          <p id="artistName" class="artist-name">—</p>
+        </div>
+
+        <div class="result-block">
+          <span class="section-label">Description</span>
+          <p id="description" class="result-text">Generate alt text to see the model's output.</p>
+        </div>
+
+        <div class="result-row">
+          <div class="result-block">
+            <span class="section-label">Confidence Score</span>
+            <p id="confidenceScore" class="result-text">—</p>
+          </div>
+          <div class="result-block">
+            <span class="section-label">Review Triggers</span>
+            <p id="reviewTriggers" class="result-text">—</p>
+          </div>
+        </div>
+
+        <div class="result-block">
+          <span class="section-label">Confidence Reasoning</span>
+          <p id="confidenceReasoning" class="result-text">—</p>
+        </div>
+
+        <details class="raw-output">
+          <summary>Raw model output</summary>
+          <pre id="rawOutput"></pre>
+        </details>
+      </div>
+    </section>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>
