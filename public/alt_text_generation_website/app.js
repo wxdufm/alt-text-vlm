@@ -2,6 +2,9 @@ const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 const releaseIdInput = document.getElementById("releaseId");
+const randomCoverBtn = document.getElementById("randomCoverBtn");
+const datasetFileSelect = document.getElementById("datasetFile");
+const datasetIndexInput = document.getElementById("datasetIndex");
 const trialSelect = document.getElementById("trialSelect");
 const generateBtn = document.getElementById("generateBtn");
 const statusMessage = document.getElementById("statusMessage");
@@ -11,17 +14,34 @@ const coverPlaceholder = document.getElementById("coverPlaceholder");
 const albumTitle = document.getElementById("albumTitle");
 const artistName = document.getElementById("artistName");
 const description = document.getElementById("description");
+const descriptionCharCount = document.getElementById("descriptionCharCount");
 const confidenceScore = document.getElementById("confidenceScore");
 const reviewTriggers = document.getElementById("reviewTriggers");
 const confidenceReasoning = document.getElementById("confidenceReasoning");
 const rawOutput = document.getElementById("rawOutput");
 
+// Same limit used elsewhere in this project (ALT_TEXT_MAX_LENGTH in server.js,
+// MAX_DESCRIPTION_CHARS in scripts/04_generate_alt_text.py).
+const MAX_DESCRIPTION_CHARS = 130;
+
+// 3rd-trial is the overall best per final_fine_tuning_report.md §2 (98.8% well-formed),
+// so it's preselected rather than defaulting to whatever /api/trials returns first.
+const DEFAULT_TRIAL = "3rd-trial";
+
 let currentRelease = null;
+// Incremented on every previewRelease() call so a slow, stale fetch response (e.g. from
+// typing quickly) can't overwrite the UI after a newer one has already resolved.
 let previewToken = 0;
 
 function setStatus(message, isError = false) {
   statusMessage.textContent = message || "";
   statusMessage.classList.toggle("error", isError);
+}
+
+function updateCharCount(text) {
+  const count = text ? text.length : 0;
+  descriptionCharCount.textContent = `${count} character${count === 1 ? "" : "s"}`;
+  descriptionCharCount.classList.toggle("over-limit", count > MAX_DESCRIPTION_CHARS);
 }
 
 function resetPreview() {
@@ -50,6 +70,9 @@ async function loadTrials() {
       option.textContent = trial.label;
       trialSelect.appendChild(option);
     }
+    if (data.trials.some((trial) => trial.key === DEFAULT_TRIAL)) {
+      trialSelect.value = DEFAULT_TRIAL;
+    }
     updateGenerateEnabled();
   } catch (err) {
     trialSelect.innerHTML = '<option value="">Failed to load trials</option>';
@@ -57,6 +80,8 @@ async function loadTrials() {
   }
 }
 
+// Fetches artist/title/cover for a candidate release id and updates the left-hand preview.
+// Used both by manual typing (debounced) and by setReleaseId() (immediate).
 async function previewRelease(id) {
   const token = ++previewToken;
 
@@ -105,6 +130,15 @@ async function previewRelease(id) {
   }
 }
 
+// Single entry point used by the random-cover button and the dataset-index selector to
+// populate the release id field and preview it immediately (bypassing the typing debounce,
+// since the id is already known-good in both cases).
+function setReleaseId(id) {
+  clearTimeout(previewDebounce);
+  releaseIdInput.value = id;
+  previewRelease(id);
+}
+
 let previewDebounce = null;
 releaseIdInput.addEventListener("input", () => {
   clearTimeout(previewDebounce);
@@ -114,6 +148,71 @@ releaseIdInput.addEventListener("input", () => {
 
 trialSelect.addEventListener("change", updateGenerateEnabled);
 
+randomCoverBtn.addEventListener("click", async () => {
+  randomCoverBtn.disabled = true;
+  setStatus("Picking a random cover...");
+  try {
+    const res = await fetch("/api/random-cover");
+    const data = await res.json();
+    if (!res.ok) {
+      setStatus(data.error || "Failed to pick a random cover", true);
+      return;
+    }
+    setStatus("");
+    setReleaseId(data.id);
+  } catch (err) {
+    setStatus(`Failed to pick a random cover: ${err.message}`, true);
+  } finally {
+    randomCoverBtn.disabled = false;
+  }
+});
+
+// Resolves the selected dataset file + index to a release id via /api/dataset-row, then
+// hands off to setReleaseId() to load it the same way any other id would be.
+async function loadDatasetIndex() {
+  const file = datasetFileSelect.value;
+  const rawIndex = datasetIndexInput.value.trim();
+
+  if (rawIndex === "") {
+    return;
+  }
+
+  const index = Number(rawIndex);
+  if (!Number.isInteger(index) || index < 0) {
+    setStatus("Index must be a non-negative integer", true);
+    return;
+  }
+
+  setStatus(`Loading row ${index} from ${file}...`);
+  try {
+    const res = await fetch(`/api/dataset-row?file=${encodeURIComponent(file)}&index=${index}`);
+    const data = await res.json();
+    if (!res.ok) {
+      setStatus(data.error || "Failed to load dataset row", true);
+      return;
+    }
+    setStatus("");
+    setReleaseId(data.id);
+  } catch (err) {
+    setStatus(`Failed to load dataset row: ${err.message}`, true);
+  }
+}
+
+let datasetIndexDebounce = null;
+datasetIndexInput.addEventListener("input", () => {
+  clearTimeout(datasetIndexDebounce);
+  datasetIndexDebounce = setTimeout(loadDatasetIndex, 400);
+});
+
+datasetFileSelect.addEventListener("change", () => {
+  if (datasetIndexInput.value.trim() !== "") {
+    loadDatasetIndex();
+  }
+});
+
+// Runs the selected trial's best adapter against the currently previewed release. The
+// first generation against a given trial is slow (model/adapter load); subsequent ones
+// against the same trial reuse the inference server's in-memory cache.
 generateBtn.addEventListener("click", async () => {
   if (!currentRelease || !trialSelect.value) {
     return;
@@ -122,6 +221,7 @@ generateBtn.addEventListener("click", async () => {
   generateBtn.disabled = true;
   setStatus("Generating... first run against a given trial can take a while to load the model.");
   description.textContent = "Generating...";
+  updateCharCount(null);
   confidenceScore.textContent = "—";
   reviewTriggers.textContent = "—";
   confidenceReasoning.textContent = "—";
@@ -142,11 +242,13 @@ generateBtn.addEventListener("click", async () => {
     if (!res.ok) {
       setStatus(data.error || "Generation failed", true);
       description.textContent = "Generation failed.";
+      updateCharCount(null);
       return;
     }
 
     setStatus("");
     description.textContent = data.description || "(no description tag found)";
+    updateCharCount(data.description);
     confidenceScore.textContent =
       data.confidence_score === null || data.confidence_score === undefined
         ? "(missing)"
@@ -159,6 +261,7 @@ generateBtn.addEventListener("click", async () => {
   } catch (err) {
     setStatus(`Generation failed: ${err.message}`, true);
     description.textContent = "Generation failed.";
+    updateCharCount(null);
   } finally {
     updateGenerateEnabled();
   }

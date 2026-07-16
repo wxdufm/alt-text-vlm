@@ -45,6 +45,11 @@ TAG_PATTERNS = {
 }
 
 
+# Each tag is extracted independently (rather than matching the whole structure at once,
+# like scripts/04_generate_alt_text.py's well-formedness check does) because trial formats
+# differ — 5th/6th trials drop confidence-reasoning entirely, and any trial can occasionally
+# emit a malformed/incomplete tag. Missing tags just come back as None instead of failing
+# the whole request.
 def parse_output(text):
     result = {}
     for key, pattern in TAG_PATTERNS.items():
@@ -68,6 +73,14 @@ def parse_output(text):
 
 
 class ModelCache:
+    """LRU cache of (model, processor) keyed by adapter path.
+
+    mlx_vlm.load() rebuilds the LoRA-wrapped model structure from scratch for a given
+    adapter, so there's no cheaper way to "swap" adapters on an already-loaded model —
+    caching whole (base + adapter) combos and evicting the least-recently-used one is the
+    best available tradeoff between load latency and memory usage.
+    """
+
     def __init__(self, max_size):
         self.max_size = max_size
         self._entries = OrderedDict()  # adapter_path ("" for none) -> (model, processor)
@@ -109,6 +122,8 @@ def build_app(cache_size):
     def health():
         return {"status": "ok", "cached": cache.keys()}
 
+    # Called by alt_text_server.js per "Generate Alt Text" click. Paths are resolved to
+    # absolute paths by the caller, so no cwd assumptions are made here.
     @app.post("/generate")
     def generate(req: GenerateRequest):
         image_path = Path(req.image_path)

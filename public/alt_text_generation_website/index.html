@@ -19,30 +19,68 @@
     </header>
 
     <section class="controls-panel">
-      <div class="field">
-        <label class="section-label" for="releaseId">Release ID</label>
-        <input
-          id="releaseId"
-          type="text"
-          placeholder="e.g. dab31fd0-f0cd-44b9-8dea-541107039b10"
-          autocomplete="off"
-        >
+      <!-- Release id: typed directly, or filled in by the random-cover button / dataset
+           index selector below (all three funnel into the same #releaseId field). -->
+      <div class="control-row">
+        <div class="field field-grow">
+          <label class="section-label" for="releaseId">Release ID</label>
+          <input
+            id="releaseId"
+            type="text"
+            placeholder="e.g. dab31fd0-f0cd-44b9-8dea-541107039b10"
+            autocomplete="off"
+          >
+        </div>
+
+        <button id="randomCoverBtn" class="button button-secondary" type="button">
+          Select random cover
+        </button>
       </div>
 
-      <div class="field">
-        <label class="section-label" for="trialSelect">Trial (best checkpoint auto-selected)</label>
-        <select id="trialSelect">
-          <option value="">Loading trials...</option>
-        </select>
+      <!-- Alternate way to pick a release: row N of train.jsonl/valid.jsonl, resolved to
+           an id server-side via /api/dataset-row. -->
+      <div class="control-row">
+        <div class="field">
+          <label class="section-label" for="datasetFile">Or select by dataset index</label>
+          <select id="datasetFile">
+            <option value="valid.jsonl" selected>valid.jsonl</option>
+            <option value="train.jsonl">train.jsonl</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <label class="section-label" for="datasetIndex">Index (starting from 0)</label>
+          <input
+            id="datasetIndex"
+            type="number"
+            min="0"
+            step="1"
+            placeholder="e.g. 0"
+            autocomplete="off"
+          >
+        </div>
       </div>
 
-      <button id="generateBtn" class="button button-primary" type="button" disabled>
-        Generate Alt Text
-      </button>
+      <!-- Trial options are populated from /api/trials, each already mapped to its own
+           best checkpoint server-side — there's no separate checkpoint picker. -->
+      <div class="control-row">
+        <div class="field field-grow">
+          <label class="section-label" for="trialSelect">Trial (best checkpoint auto-selected)</label>
+          <select id="trialSelect">
+            <option value="">Loading trials...</option>
+          </select>
+        </div>
+
+        <button id="generateBtn" class="button button-primary" type="button" disabled>
+          Generate Alt Text
+        </button>
+      </div>
 
       <p id="statusMessage" class="status-message"></p>
     </section>
 
+    <!-- Cover preview (left) fills in as soon as a valid release id resolves; the result
+         panel (right) only fills in after a successful "Generate Alt Text" click. -->
     <section class="result-layout">
       <div class="cover-frame">
         <img id="cover" alt="">
@@ -56,7 +94,10 @@
         </div>
 
         <div class="result-block">
-          <span class="section-label">Description</span>
+          <div class="result-header">
+            <span class="section-label">Description</span>
+            <span id="descriptionCharCount" class="char-counter">0 characters</span>
+          </div>
           <p id="description" class="result-text">Generate alt text to see the model's output.</p>
         </div>
 
@@ -76,6 +117,9 @@
           <p id="confidenceReasoning" class="result-text">—</p>
         </div>
 
+        <!-- Not every trial's format includes every tag (e.g. 5th/6th drop
+             confidence-reasoning), and generation can occasionally produce malformed
+             output — the raw text is kept visible for debugging either case. -->
         <details class="raw-output">
           <summary>Raw model output</summary>
           <pre id="rawOutput"></pre>

@@ -1,3 +1,7 @@
+// Standalone backend for the alt-text generation playground (public/alt_text_generation_website).
+// Deliberately separate from server.js/the reviewer app: different port, own process, own
+// lifecycle. It talks to a persistent Python process (scripts/inference_server.py) for the
+// actual mlx_vlm generation, spawning it on demand since Node can't call mlx_vlm directly.
 import dotenv from "dotenv";
 import express from "express";
 import fs from "fs";
@@ -15,12 +19,28 @@ const HOST = process.env.HOST || "0.0.0.0";
 const COVERS_DIR = path.join(process.cwd(), "data", "covers");
 const COVER_EXTENSIONS = [".jpg", ".jpeg", ".png"];
 
+// The two JSONL files selectable from the "select by dataset index" control; each row's
+// "id" field maps back to a file in data/covers.
+const DATASET_FILES = {
+  "train.jsonl": path.join(process.cwd(), "data", "train.jsonl"),
+  "valid.jsonl": path.join(process.cwd(), "data", "valid.jsonl")
+};
+
+// A random file in data/covers isn't guaranteed to have a matching releases row (or vice
+// versa), so /api/random-cover retries a handful of picks before giving up.
+const RANDOM_COVER_MAX_ATTEMPTS = 15;
+
+// Same pattern server.js uses for release ids; kept local since this file must not import
+// from server.js.
 const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 // Best checkpoint per trial, per "2. All seven trials at a glance" in
 // final_fine_tuning_report.md. Each path is a self-contained adapter
-// directory (its own adapter_config.json + adapters.safetensors).
+// directory (its own adapter_config.json + adapters.safetensors) — mlx_vlm's
+// apply_lora_layers always reads "<adapter_path>/adapters.safetensors", so a
+// specific checkpoint (e.g. "700") has to live in its own subdirectory rather
+// than being pointed at directly as a numbered file.
 const BEST_ADAPTERS = {
   "1st-trial": {
     path: "adapters/1st-trial",
@@ -58,6 +78,8 @@ const INFERENCE_PORT = process.env.INFERENCE_PORT || 8765;
 const INFERENCE_BASE_URL = `http://${INFERENCE_HOST}:${INFERENCE_PORT}`;
 const INFERENCE_STARTUP_TIMEOUT_MS = 120_000;
 
+// Holds the spawned Python child process (if we started one) and an in-flight startup
+// promise so concurrent requests don't each try to spawn their own copy.
 let inferenceProcess = null;
 let inferenceReadyPromise = null;
 
@@ -71,6 +93,17 @@ function findCoverPath(id) {
   return null;
 }
 
+// Dataset rows only need their "id" field for this tool (the cover + artist/title still
+// come from data/covers and Postgres respectively), so parse just that out of each line.
+function readDatasetIds(file) {
+  const filePath = DATASET_FILES[file];
+  const content = fs.readFileSync(filePath, "utf8");
+  return content
+    .split("\n")
+    .filter((line) => line.trim())
+    .map((line) => JSON.parse(line).id);
+}
+
 async function checkInferenceHealth() {
   try {
     const res = await fetch(`${INFERENCE_BASE_URL}/health`, {
@@ -82,6 +115,9 @@ async function checkInferenceHealth() {
   }
 }
 
+// Lazily starts scripts/inference_server.py the first time it's needed and waits for its
+// /health endpoint to respond. The timeout is long because the first request also has to
+// load the ~8B-parameter base model into memory, which can take a while.
 async function ensureInferenceServer() {
   if (await checkInferenceHealth()) {
     return;
@@ -126,6 +162,9 @@ async function ensureInferenceServer() {
   }
 }
 
+// Shared by /api/release/:id, /api/random-cover, and /api/generate. The cover must exist
+// locally in data/covers — this intentionally never falls back to the releases table's
+// cover_url, per the requirement that only locally-available covers are selectable.
 async function lookupRelease(id) {
   if (typeof id !== "string" || !UUID_PATTERN.test(id)) {
     return { error: 400, message: "Invalid release id" };
@@ -153,6 +192,7 @@ async function lookupRelease(id) {
 app.use(express.static("public/alt_text_generation_website"));
 app.use(express.json());
 
+// Powers the trial dropdown. The frontend never hardcodes trial names/labels itself.
 app.get("/api/trials", (req, res) => {
   const trials = Object.entries(BEST_ADAPTERS).map(([key, { label }]) => ({
     key,
@@ -161,6 +201,7 @@ app.get("/api/trials", (req, res) => {
   res.json({ trials });
 });
 
+// Used for the live cover/artist/title preview as the user types a release id.
 app.get("/api/release/:id", async (req, res) => {
   try {
     const result = await lookupRelease(req.params.id);
@@ -174,6 +215,70 @@ app.get("/api/release/:id", async (req, res) => {
   }
 });
 
+// Powers the "Select random cover" button.
+app.get("/api/random-cover", async (req, res) => {
+  try {
+    const files = fs
+      .readdirSync(COVERS_DIR)
+      .filter((f) => COVER_EXTENSIONS.includes(path.extname(f).toLowerCase()));
+
+    if (files.length === 0) {
+      return res.status(404).json({ error: "No covers found in data/covers" });
+    }
+
+    // Retry instead of pre-filtering the whole directory against Postgres up front —
+    // cheaper for the common case where most covers do have a matching release row.
+    for (let attempt = 0; attempt < RANDOM_COVER_MAX_ATTEMPTS; attempt++) {
+      const file = files[Math.floor(Math.random() * files.length)];
+      const id = path.basename(file, path.extname(file));
+      const release = await lookupRelease(id);
+      if (!release.error) {
+        return res.json({ id });
+      }
+    }
+
+    res.status(404).json({
+      error: "Could not find a random cover with matching release data after several attempts"
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to pick a random cover", detail: err.message });
+  }
+});
+
+// Powers the "select by dataset index" control: resolves row N of train.jsonl/valid.jsonl
+// to a release id, which the frontend then feeds through the normal preview flow.
+app.get("/api/dataset-row", (req, res) => {
+  const { file, index } = req.query;
+
+  if (!DATASET_FILES[file]) {
+    return res.status(400).json({ error: `Unknown dataset file: ${file}` });
+  }
+
+  const parsedIndex = Number(index);
+  if (!Number.isInteger(parsedIndex) || parsedIndex < 0) {
+    return res.status(400).json({ error: "index must be a non-negative integer" });
+  }
+
+  let ids;
+  try {
+    ids = readDatasetIds(file);
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: `Failed to read ${file}`, detail: err.message });
+  }
+
+  if (parsedIndex >= ids.length) {
+    return res.status(400).json({
+      error: `Index ${parsedIndex} out of range — ${file} has ${ids.length} rows (0-${ids.length - 1})`
+    });
+  }
+
+  res.json({ id: ids[parsedIndex], index: parsedIndex, file, total: ids.length });
+});
+
+// Streams the actual image bytes — the browser can't reach data/covers directly since
+// only public/alt_text_generation_website is served as static content.
 app.get("/api/cover/:id", (req, res) => {
   const { id } = req.params;
   if (!UUID_PATTERN.test(id)) {
@@ -243,6 +348,8 @@ app.listen(PORT, HOST, (err) => {
   console.log(`Alt text generation playground running at http://${HOST}:${PORT}`);
 });
 
+// Take the Python inference process down with us so it doesn't linger holding the model
+// in memory after this server stops.
 function shutdown() {
   if (inferenceProcess) {
     inferenceProcess.kill();
