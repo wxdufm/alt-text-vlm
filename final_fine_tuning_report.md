@@ -119,13 +119,12 @@ help; see §4 for why.
 
 ### The `repetition_penalty` bug (the turning point)
 
-After 6th-trial, a manual test of its checkpoint 700 with `repetition_penalty=1.0` (disabled,
-vs. the `1.3` used everywhere above) showed a massive, unexpected jump in quality. This triggered
-a full re-evaluation of every previously-tested checkpoint. **Every single one improved; none got
-worse** — several by 50+ percentage points (3rd-trial-700 alone went from 1/80 to 79/80).
+Every prior evaluation across all six fine-tuning trials (see `fine-tuning-report.md`) used `scripts/04_generate_alt_text.py`'s default generation settings, including `repetition_penalty=1.3`. That value was chosen early in the project to stop degenerate repetition loops in long free-text generation. It was never revisited after the training data format changed to much shorter completions (5th-trial onward).
+
+A manual test on 6th-trial's checkpoint 700 with `repetition_penalty=1.0` (disabled) showed a massive, unexpected improvement, which prompted a full re-evaluation of every checkpoint previously tested. **Conclusion: the repetition penalty was actively breaking tag closure across every trial, and was the dominant confound in essentially all of the rank/format comparisons made earlier in this project.**
 
 **Why:** the 3-tag/4-tag output format is inherently repetitive at the character level —
-`<description>` and `</description>` share the substring "description" well inside the
+`<description>` and `</description>` share the substring "description" only ~10-15 tokens apart, well inside the
 `repetition_context_size=20` window. A repetition penalty tuned for long free-text generation
 actively penalizes the model for "repeating" a substring the tag format *requires* it to repeat,
 pushing output toward malformed structure (wrong tag order, hallucinated tags borrowed from the
@@ -137,7 +136,29 @@ the field for 5th/6th-trial in the first place. Under corrected decoding, 3rd-tr
 `confidence-reasoning` in 79/80 rows, matching every other field almost exactly.
 
 `repetition_penalty=1.0` is now the script default (`scripts/04_generate_alt_text.py`) and every
-number in §2 reflects it. Full before/after detail: `new_test_report.md`.
+number in §2 reflects it.
+
+#### Full before/after comparison
+
+All 12 checkpoints below were re-run at `repetition_penalty=1.0`, everything else identical to their original evaluation. Results saved to `eval_results/new_tests/{trial}/`.
+
+| Checkpoint | Format | Old well-formed (rep-penalty 1.3) | **New well-formed (rep-penalty 1.0)** | Change |
+|---|---|---|---|---|
+| 3rd-final | 4-tag | 52/80 | 66/80 | +14 |
+| **3rd-700** | 4-tag | 1/80 | **79/80** | **+78** |
+| 3rd-800 | 4-tag | 17/80 | 76/80 | +59 |
+| 4th-final | 4-tag | 28/80 | 31/80 | +3 |
+| **5th-900** | 3-tag | 25/80 | **74/80** | **+49** |
+| 5th-final | 3-tag | 18/80 | 37/80 | +19 |
+| 6th-500 | 3-tag | 0/80 | 13/80 | +13 |
+| 6th-600 | 3-tag | 8/80 | 41/80 | +33 |
+| 6th-700 | 3-tag | 12/80 | 47/80 | +35 |
+| 6th-800 | 3-tag | 7/80 | 32/80 | +25 |
+| 6th-900 | 3-tag | 9/80 | 40/80 | +31 |
+| 6th-final | 3-tag | *(untested before)* | 44/80 | new |
+
+Every checkpoint improved; none got worse.
+
 
 ### 7th trial — reintroducing reasoning, now correctly measured
 
