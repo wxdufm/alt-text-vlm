@@ -162,9 +162,10 @@ async function ensureInferenceServer() {
   }
 }
 
-// Shared by /api/release/:id, /api/random-cover, and /api/generate. The cover must exist
-// locally in data/covers — this intentionally never falls back to the releases table's
-// cover_url, per the requirement that only locally-available covers are selectable.
+// Used by /api/release/:id and /api/random-cover — the two "pick a known-good release"
+// paths (typed id, local random cover, dataset index). The cover must exist locally in
+// data/covers; this intentionally never falls back to the releases table's cover_url,
+// since those flows are about releases we already have local, exported covers for.
 async function lookupRelease(id) {
   if (typeof id !== "string" || !UUID_PATTERN.test(id)) {
     return { error: 400, message: "Invalid release id" };
@@ -187,6 +188,41 @@ async function lookupRelease(id) {
 
   const { artist, title } = result.rows[0];
   return { id, artist, title, coverPath };
+}
+
+// Used only by /api/generate, and only when the frontend explicitly says the release came
+// from the "random unreviewed cover" flow (unapproved releases generally aren't exported
+// to data/covers yet). In that case the DB's cover_url is used as the image source instead
+// of requiring a local file — mlx_vlm.load_image() can fetch http(s) URLs directly.
+async function lookupReleaseForGeneration(id, useExternalCover) {
+  if (typeof id !== "string" || !UUID_PATTERN.test(id)) {
+    return { error: 400, message: "Invalid release id" };
+  }
+
+  if (!useExternalCover) {
+    const release = await lookupRelease(id);
+    if (release.error) {
+      return release;
+    }
+    return { id: release.id, artist: release.artist, title: release.title, imageSource: release.coverPath };
+  }
+
+  const pool = getPostgresPool();
+  const result = await pool.query(
+    "SELECT artist, title, cover_url FROM releases WHERE id = $1",
+    [id]
+  );
+
+  if (result.rows.length === 0) {
+    return { error: 404, message: `No release found in the database for id ${id}` };
+  }
+
+  const { artist, title, cover_url: coverUrl } = result.rows[0];
+  if (!coverUrl) {
+    return { error: 404, message: `Release ${id} has no cover_url in the database` };
+  }
+
+  return { id, artist, title, imageSource: coverUrl };
 }
 
 app.use(express.static("public/alt_text_generation_website"));
@@ -246,6 +282,35 @@ app.get("/api/random-cover", async (req, res) => {
   }
 });
 
+// Powers the "Select random unreviewed cover" button — surfaces releases the model has
+// never been evaluated against, sourcing the image straight from the DB's cover_url since
+// unapproved releases generally haven't been exported to data/covers yet.
+app.get("/api/random-unapproved-cover", async (req, res) => {
+  try {
+    const pool = getPostgresPool();
+    const result = await pool.query(
+      `SELECT id, artist, title, cover_url
+       FROM releases
+       WHERE approved = false AND cover_url IS NOT NULL
+       ORDER BY random()
+       LIMIT 1`
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: "No unapproved releases with a cover_url found" });
+    }
+
+    const { id, artist, title, cover_url: coverUrl } = result.rows[0];
+    res.json({ id, artist, title, coverUrl });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({
+      error: "Failed to pick a random unapproved cover",
+      detail: err.message
+    });
+  }
+});
+
 // Powers the "select by dataset index" control: resolves row N of train.jsonl/valid.jsonl
 // to a release id, which the frontend then feeds through the normal preview flow.
 app.get("/api/dataset-row", (req, res) => {
@@ -292,14 +357,16 @@ app.get("/api/cover/:id", (req, res) => {
 });
 
 app.post("/api/generate", async (req, res) => {
-  const { releaseId, trial } = req.body || {};
+  const { releaseId, trial, useExternalCover } = req.body || {};
 
   if (!BEST_ADAPTERS[trial]) {
     return res.status(400).json({ error: `Unknown trial: ${trial}` });
   }
 
   try {
-    const release = await lookupRelease(releaseId);
+    // useExternalCover is only ever set by the frontend for releases picked via the
+    // "random unreviewed cover" flow — see lookupReleaseForGeneration().
+    const release = await lookupReleaseForGeneration(releaseId, Boolean(useExternalCover));
     if (release.error) {
       return res.status(release.error).json({ error: release.message });
     }
@@ -312,7 +379,7 @@ app.post("/api/generate", async (req, res) => {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        image_path: release.coverPath,
+        image_path: release.imageSource,
         artist: release.artist,
         title: release.title,
         adapter_path: adapterPath

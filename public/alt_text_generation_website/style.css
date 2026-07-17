@@ -95,6 +95,13 @@ h2 {
   flex: 1;
 }
 
+.field-help {
+  margin: 0;
+  color: #596579;
+  font-size: 14px;
+  line-height: 1.4;
+}
+
 .field input,
 .field select {
   width: 100%;
@@ -212,6 +219,30 @@ h2 {
   margin-bottom: 20px;
   padding-bottom: 16px;
   border-bottom: 1px solid #d7dee8;
+}
+
+.release-meta-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+/* Flags releases sourced via the "random unreviewed cover" flow, whose image comes from
+   the DB's cover_url rather than data/covers — a reminder that this is the model reacting
+   to data it hasn't been tested against. */
+.source-badge {
+  padding: 3px 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.unreviewed-badge {
+  background: #fff2e0;
+  color: #b45309;
 }
 
 .artist-name {

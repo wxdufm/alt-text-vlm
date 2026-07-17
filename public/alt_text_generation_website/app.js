@@ -3,6 +3,7 @@ const UUID_PATTERN =
 
 const releaseIdInput = document.getElementById("releaseId");
 const randomCoverBtn = document.getElementById("randomCoverBtn");
+const randomUnapprovedBtn = document.getElementById("randomUnapprovedBtn");
 const datasetFileSelect = document.getElementById("datasetFile");
 const datasetIndexInput = document.getElementById("datasetIndex");
 const trialSelect = document.getElementById("trialSelect");
@@ -13,6 +14,7 @@ const cover = document.getElementById("cover");
 const coverPlaceholder = document.getElementById("coverPlaceholder");
 const albumTitle = document.getElementById("albumTitle");
 const artistName = document.getElementById("artistName");
+const sourceBadge = document.getElementById("sourceBadge");
 const description = document.getElementById("description");
 const descriptionCharCount = document.getElementById("descriptionCharCount");
 const confidenceScore = document.getElementById("confidenceScore");
@@ -52,6 +54,7 @@ function resetPreview() {
   coverPlaceholder.textContent = "Enter a release ID to preview its cover";
   albumTitle.textContent = "—";
   artistName.textContent = "—";
+  sourceBadge.hidden = true;
   updateGenerateEnabled();
 }
 
@@ -106,14 +109,16 @@ async function previewRelease(id) {
       currentRelease = null;
       albumTitle.textContent = "—";
       artistName.textContent = "—";
+      sourceBadge.hidden = true;
       coverPlaceholder.textContent = data.error || "Release not found";
       updateGenerateEnabled();
       return;
     }
 
-    currentRelease = data;
+    currentRelease = { ...data, local: true };
     albumTitle.textContent = data.title;
     artistName.textContent = data.artist;
+    sourceBadge.hidden = true;
     cover.src = `/api/cover/${encodeURIComponent(id)}?t=${Date.now()}`;
     cover.onload = () => {
       cover.classList.add("loaded");
@@ -164,6 +169,61 @@ randomCoverBtn.addEventListener("click", async () => {
     setStatus(`Failed to pick a random cover: ${err.message}`, true);
   } finally {
     randomCoverBtn.disabled = false;
+  }
+});
+
+// Populates the preview directly from a /api/random-unapproved-cover response, bypassing
+// previewRelease()/setReleaseId() entirely since those require a local data/covers file —
+// this flow's whole point is releases that don't have one, sourced via cover_url instead.
+function setExternalRelease(data) {
+  clearTimeout(previewDebounce);
+  previewToken++; // invalidate any in-flight local preview lookup
+
+  releaseIdInput.value = data.id;
+  currentRelease = {
+    id: data.id,
+    artist: data.artist,
+    title: data.title,
+    local: false
+  };
+
+  albumTitle.textContent = data.title;
+  artistName.textContent = data.artist;
+  sourceBadge.hidden = false;
+
+  coverPlaceholder.style.display = "block";
+  coverPlaceholder.textContent = "Loading cover from database...";
+  cover.classList.remove("loaded");
+  cover.src = data.coverUrl;
+  cover.onload = () => {
+    cover.classList.add("loaded");
+    coverPlaceholder.style.display = "none";
+  };
+  cover.onerror = () => {
+    cover.classList.remove("loaded");
+    coverPlaceholder.style.display = "block";
+    coverPlaceholder.textContent = "Failed to load cover from cover_url";
+  };
+
+  updateGenerateEnabled();
+}
+
+randomUnapprovedBtn.addEventListener("click", async () => {
+  randomUnapprovedBtn.disabled = true;
+  setStatus("Picking a random unreviewed cover...");
+  try {
+    const res = await fetch("/api/random-unapproved-cover");
+    const data = await res.json();
+    if (!res.ok) {
+      setStatus(data.error || "Failed to pick a random unreviewed cover", true);
+      return;
+    }
+    setStatus("");
+    setExternalRelease(data);
+  } catch (err) {
+    setStatus(`Failed to pick a random unreviewed cover: ${err.message}`, true);
+  } finally {
+    randomUnapprovedBtn.disabled = false;
   }
 });
 
@@ -233,7 +293,8 @@ generateBtn.addEventListener("click", async () => {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         releaseId: currentRelease.id,
-        trial: trialSelect.value
+        trial: trialSelect.value,
+        useExternalCover: currentRelease.local === false
       })
     });
 

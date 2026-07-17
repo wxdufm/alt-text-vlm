@@ -50,6 +50,10 @@ TAG_PATTERNS = {
 # differ — 5th/6th trials drop confidence-reasoning entirely, and any trial can occasionally
 # emit a malformed/incomplete tag. Missing tags just come back as None instead of failing
 # the whole request.
+def _is_url(value):
+    return isinstance(value, str) and value.startswith(("http://", "https://"))
+
+
 def parse_output(text):
     result = {}
     for key, pattern in TAG_PATTERNS.items():
@@ -105,6 +109,9 @@ class ModelCache:
 
 
 class GenerateRequest(BaseModel):
+    # A local filesystem path in the common case, but may also be an http(s) URL — used
+    # for "never reviewed" releases whose cover only exists at their database cover_url,
+    # not in data/covers. mlx_vlm.load_image() handles both transparently.
     image_path: str
     artist: str
     title: str
@@ -126,11 +133,15 @@ def build_app(cache_size):
     # absolute paths by the caller, so no cwd assumptions are made here.
     @app.post("/generate")
     def generate(req: GenerateRequest):
-        image_path = Path(req.image_path)
-        if not image_path.exists():
-            raise HTTPException(
-                status_code=404, detail=f"Image not found: {req.image_path}"
-            )
+        if _is_url(req.image_path):
+            image_arg = req.image_path
+        else:
+            image_path = Path(req.image_path)
+            if not image_path.exists():
+                raise HTTPException(
+                    status_code=404, detail=f"Image not found: {req.image_path}"
+                )
+            image_arg = str(image_path)
 
         if req.adapter_path and not Path(req.adapter_path).exists():
             raise HTTPException(
@@ -148,20 +159,27 @@ def build_app(cache_size):
             processor, model.config, user_prompt, num_images=1
         )
 
-        result = mlx_vlm.generate(
-            model,
-            processor,
-            prompt=templated_prompt,
-            image=str(image_path),
-            max_tokens=req.max_tokens,
-            resize_shape=(448, 448),
-            repetition_penalty=req.repetition_penalty,
-            repetition_context_size=req.repetition_context_size,
-            # mlx_vlm's default prefill_step_size (2048) breaks chunked prefill
-            # for image prompts once the prompt needs >1 chunk.
-            prefill_step_size=DEFAULT_PREFILL_STEP_SIZE,
-            verbose=False,
-        )
+        try:
+            result = mlx_vlm.generate(
+                model,
+                processor,
+                prompt=templated_prompt,
+                image=image_arg,
+                max_tokens=req.max_tokens,
+                resize_shape=(448, 448),
+                repetition_penalty=req.repetition_penalty,
+                repetition_context_size=req.repetition_context_size,
+                # mlx_vlm's default prefill_step_size (2048) breaks chunked prefill
+                # for image prompts once the prompt needs >1 chunk.
+                prefill_step_size=DEFAULT_PREFILL_STEP_SIZE,
+                verbose=False,
+            )
+        except ValueError as e:
+            # load_image() raises ValueError for unreachable/invalid image sources —
+            # most commonly a dead cover_url for a never-reviewed release.
+            raise HTTPException(
+                status_code=502, detail=f"Failed to load image {req.image_path}: {e}"
+            )
 
         parsed = parse_output(result.text)
         parsed["raw_text"] = result.text

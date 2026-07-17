@@ -61,6 +61,20 @@
         </div>
       </div>
 
+      <!-- Unlike the controls above, this pulls from releases the model has never been
+           tested against (approved = false in the DB) and displays their cover straight
+           from cover_url, since those covers generally aren't in data/covers yet. -->
+      <div class="control-row">
+        <div class="field field-grow">
+          <label class="section-label">Test against unreviewed data</label>
+          <p class="field-help">Pulls a random release still awaiting approval, loading its cover from the database directly.</p>
+        </div>
+
+        <button id="randomUnapprovedBtn" class="button button-secondary" type="button">
+          Select random unreviewed cover
+        </button>
+      </div>
+
       <!-- Trial options are populated from /api/trials, each already mapped to its own
            best checkpoint server-side — there's no separate checkpoint picker. -->
       <div class="control-row">
@@ -89,7 +103,10 @@
 
       <div class="panel">
         <div class="release-meta">
-          <h2 id="albumTitle">—</h2>
+          <div class="release-meta-header">
+            <h2 id="albumTitle">—</h2>
+            <span id="sourceBadge" class="source-badge unreviewed-badge" hidden>Unreviewed — external cover</span>
+          </div>
           <p id="artistName" class="artist-name">—</p>
         </div>
 
