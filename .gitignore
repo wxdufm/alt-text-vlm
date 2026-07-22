@@ -9,3 +9,5 @@ releases_dump.sql
 vlm_training_dump_*.sql
 /node_modules
 /data/covers
+/wxdu_mongodb
+/discogs_review_tmp
