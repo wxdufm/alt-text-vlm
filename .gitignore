@@ -5,6 +5,7 @@ models/
 .cache/
 /sqldocker/
 .env
+.env.local
 releases_dump.sql
 vlm_training_dump_*.sql
 /node_modules
